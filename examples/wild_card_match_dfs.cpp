@@ -1,6 +1,7 @@
 #include <sdsl/suffix_arrays.hpp>
 #include <vector>
 #include <iostream>
+#include "../include/sdsl/matching.hpp"
 
 using namespace sdsl;
 using namespace std;
@@ -48,204 +49,16 @@ size_t match_ref(type_csa csa, type_wt wts, string s1, string s2, size_t min_gap
     return result;
 }
 
-template<class type_csa, class type_wt>
-struct node_cache
+template <typename type_matching_index>
+size_t match_dfs(type_matching_index& index, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(typename type_matching_index::size_type a, typename type_matching_index::size_type b)> callback)
 {
-    typedef typename type_wt::node_type  node_type;
-    typedef typename type_csa::size_type size_type;
-    
-    type_wt *wts;
-    node_type node;
-    pair<shared_ptr<node_cache>, shared_ptr<node_cache>> children;
-    size_type range_begin;
-    size_type range_end;
-    bool is_leaf;
-    
-    size_type range_size()
+    size_t cnt = 0;
+    for (auto res : index.match2(s1, s2, min_gap, max_gap))
     {
-        return range_end - range_begin;
+        callback(res.first, res.second);
+        ++cnt;
     }
-    
-    node_cache(node_type node, type_wt *wts)
-    {
-        this->wts = wts;
-        this->node = node;
-        this->children = make_pair(nullptr, nullptr);
-        auto range = wts->value_range(node);
-        this->range_begin = get<0>(range);
-        this->range_end = get<1>(range);
-        this->is_leaf = wts->is_leaf(node);
-    }
-    
-    void ensure_children()
-    {
-        if (children.first == nullptr)
-        {
-            auto children = wts->expand(node);
-            this->children = make_pair(make_shared<node_cache>(children[0], wts), make_shared<node_cache>(children[1], wts));
-        }
-    }
-};
-
-// ITERATOR BEGIN
-template<class type_csa, class type_wt>
-class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag, pair<typename type_csa::size_type, typename type_csa::size_type>>
-{
-private:
-    typedef typename type_wt::node_type  node_type;
-    typedef typename type_csa::size_type size_type;
-    typedef pair<size_type, size_type>   result_type;
-
-    // (lex_range, node)
-    array<stack<pair<range_type,shared_ptr<node_cache<type_csa, type_wt>>> >, 2> lex_ranges;
-
-    type_wt wts;
-    size_t a;
-    size_t b_idx = -1;
-    deque<size_t> b_values;
-
-    size_t s1_size_min_gap;
-    size_t s1_size_max_gap;
-    size_t s2_size;
-
-    result_type current;
-
-    void split_node(int t)
-    {
-        auto top = lex_ranges[t].top(); lex_ranges[t].pop();
-        auto& node = top.second;
-        node->ensure_children();
-        auto exp_range = wts.expand(node->node, top.first);
-        if (!empty(exp_range[1]))
-            lex_ranges[t].emplace(exp_range[1], node->children.second);
-        if (!empty(exp_range[0]))
-            lex_ranges[t].emplace(exp_range[0], node->children.first);
-    };
-    
-    void adjust_b_range()
-    {
-        // shrink
-        while (!b_values.empty() && a + s1_size_min_gap > b_values.front())
-            b_values.pop_front();
-        // expand
-        while (!lex_ranges[1].empty() && a + s1_size_max_gap >= lex_ranges[1].top().second->range_begin)
-        {
-            if (lex_ranges[1].top().second->is_leaf)
-            {                    
-                b_values.push_back(lex_ranges[1].top().second->range_begin);
-                lex_ranges[1].pop();
-            }
-            else
-                split_node(1);
-        }
-    }
-
-    bool next_batch()
-    {
-        b_idx = 0;
-        
-        // find next connected match
-        while (!lex_ranges[0].empty() 
-            && !b_values.empty()
-            && lex_ranges[0].top().second->range_begin + s1_size_min_gap <= b_values.back())
-        {
-            if (lex_ranges[0].top().second->is_leaf)
-            {
-                a = lex_ranges[0].top().second->range_begin;
-                lex_ranges[0].pop();
-                adjust_b_range();
-                if (!b_values.empty())
-                    return true;
-            }
-            else
-                split_node(0);
-        }
-            
-        // find next independent match
-        while (!lex_ranges[0].empty() && !lex_ranges[1].empty())
-        {
-            const auto& top0 = lex_ranges[0].top().second;
-            const auto& top1 = lex_ranges[1].top().second;
-            if (top0->range_end + s1_size_max_gap < top1->range_begin)
-                lex_ranges[0].pop();
-            else if (top0->range_begin + s1_size_min_gap > top1->range_end)
-                lex_ranges[1].pop();
-            else if (top0->is_leaf && top1->is_leaf)
-            {
-                a = top0->range_begin;
-                b_values.push_back(top1->range_begin);
-                lex_ranges[0].pop();
-                lex_ranges[1].pop();
-                adjust_b_range();
-                return true;
-            }
-            else
-                split_node(top1->range_size() > top0->range_size() ? 1 : 0);
-        }
-
-        b_values.clear();
-        return false;
-    }
-
-    void next()
-    {
-        ++b_idx;
-        if (!valid() && !next_batch())
-            return; // end
-
-        current = make_pair(a, b_values[b_idx]+s2_size-1);
-        //cout << current.first << " " << current.second << endl;
-    }
-
-public:
-    wild_card_match_iterator(type_csa& csa, type_wt& wts, string s1, string s2, size_t min_gap, size_t max_gap)
-    {
-        this->wts = wts;
-
-        s2_size = s2.size();
-        s1_size_min_gap = s1.size() + min_gap;
-        s1_size_max_gap = s1.size() + max_gap;
-
-        auto root_node = make_shared<node_cache<type_csa, type_wt>>(wts.root(), &wts);
-        size_type sp = 1, ep = 0;
-        if (0 != backward_search(csa, 0, csa.size()-1, s1.begin(), s1.end(), sp, ep))
-            lex_ranges[0].emplace(range_type(sp, ep),root_node);
-        if (0 != backward_search(csa, 0, csa.size()-1, s2.begin(), s2.end(), sp, ep))
-            lex_ranges[1].emplace(range_type(sp, ep),root_node);
-
-        next();
-    }
-
-    bool valid()
-    {
-        return b_idx < b_values.size();
-    }
-
-    result_type operator*() const
-    {
-        return current;
-    }
-    result_type* operator->()
-    {
-        return &current;
-    }
-
-    wild_card_match_iterator& operator++()
-    {
-        next();
-        return *this;
-    }
-};
-// ITERATOR END
-
-template <typename type_csa, typename type_wt>
-size_t match_dfs(type_csa& csa, type_wt& wts, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(typename type_csa::size_type a, typename type_csa::size_type b)> callback)
-{
-    size_t res = 0;
-    auto it = wild_card_match_iterator<type_csa, type_wt>(csa, wts, s1, s2, min_gap, max_gap);
-    for (; it.valid(); ++it, ++res)
-        callback(it->first, it->second);
-    return res;
+    return cnt;
 }
 
 template <typename type_csa, typename type_wt>
@@ -388,6 +201,8 @@ int main(int argc, char* argv[])
 
     util::delete_all_files(cc.file_map);
 
+    matching_index<> index(csa, wts);
+
     cout<<"wts.size()="<<wts.size()<<endl;
     if ( wts.size() < 100 ){
         cout<<"wts="<<wts<<endl;
@@ -414,7 +229,7 @@ int main(int argc, char* argv[])
         // TESTS
         auto test = [&](string s1, string s2, size_t min_gap, size_t max_gap) 
         { 
-            size_t matches = match_dfs(csa, wts, s1, s2, min_gap, max_gap, callback_nop);
+            size_t matches = match_dfs(index, s1, s2, min_gap, max_gap, callback_nop);
             size_t matches_ref = match_ref(csa, wts, s1, s2, min_gap, max_gap, callback_nop);
             
             bool success = matches == matches_ref;
@@ -459,12 +274,12 @@ int main(int argc, char* argv[])
                 auto s2 = tcs[tci].second;
                 for (int i = 0; i <= max; i += 3)
                 { 
-                    found += match_dfs(csa, wts, s1, s2, i, max, callback_nop);
-                    found += match_dfs(csa, wts, s1, s2, 0, i, callback_nop);
-                    found += match_dfs(csa, wts, s1, s2, i, i, callback_nop);
-                    found += match_dfs(csa, wts, s1, s2, i, 2*i, callback_nop);
-                    found += match_dfs(csa, wts, s1, s2, 10 * i, 10 * i + 3, callback_nop);
-                    found += match_dfs(csa, wts, s1, s2, 10 * i, 10 * i + 10, callback_nop);
+                    found += match_dfs(index, s1, s2, i, max, callback_nop);
+                    found += match_dfs(index, s1, s2, 0, i, callback_nop);
+                    found += match_dfs(index, s1, s2, i, i, callback_nop);
+                    found += match_dfs(index, s1, s2, i, 2*i, callback_nop);
+                    found += match_dfs(index, s1, s2, 10 * i, 10 * i + 3, callback_nop);
+                    found += match_dfs(index, s1, s2, 10 * i, 10 * i + 10, callback_nop);
                 }
             }
             auto stop = timer::now();
@@ -498,7 +313,7 @@ int main(int argc, char* argv[])
         string s1, s2;
         cout << "PROMPT: " << endl;
         while (cin >> s1 >> s2 >> min_gap >> max_gap)
-            cout << match_dfs(csa, wts, s1, s2, min_gap, max_gap, callback_cout) << " matches found" << endl;
+            cout << match_dfs(index, s1, s2, min_gap, max_gap, callback_cout) << " matches found" << endl;
     }
     err:;
 }
