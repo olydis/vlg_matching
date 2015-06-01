@@ -1,7 +1,6 @@
 #include <sdsl/suffix_arrays.hpp>
 #include <vector>
 #include <iostream>
-#include "../include/sdsl/matching.hpp"
 
 using namespace sdsl;
 using namespace std;
@@ -49,31 +48,126 @@ size_t match_ref(type_csa csa, type_wt wts, string s1, string s2, size_t min_gap
     return result;
 }
 
-template <typename type_matching_index>
-size_t match_dfs(type_matching_index& index, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(typename type_matching_index::size_type a, typename type_matching_index::size_type b)> callback)
+template <typename type_csa, typename type_wt>
+size_t match_dfs(type_csa csa, type_wt wts, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(typename type_csa::size_type a, typename type_csa::size_type b)> callback)
 {
-    size_t cnt = 0;
-    for (auto res : index.match2(s1, s2, min_gap, max_gap))
-    {
-        callback(res.first, res.second);
-        ++cnt;
-    }
-    return cnt;
-}
+    using node_type = typename type_wt::node_type;
+    using size_type = typename type_csa::size_type;
 
-template <typename type_matching_index>
-size_t match3_dfs(type_matching_index& index, 
-    incremental_wildcard_pattern p1, 
-    incremental_wildcard_pattern p2, 
-    string s)
-{
-    size_t cnt = 0;
-    for (vector<size_t> res : index.match3(p1, p2, s))
+    auto s1_size = s1.size();
+    auto s2_size = s2.size();
+    auto s1_size_min_gap = s1_size + min_gap;
+    auto s1_size_max_gap = s1_size + max_gap;
+
+    size_t cnt_nodes = 0;
+    
+    array<stack<pair<range_type,size_t>>, 2> lex_ranges; // stores vector of (lex_range,node_id) pairs for each pattern 
+    
+    // (node, LAZY lchild, LAZY rchild, lbound, rbound)
+    vector<std::tuple<node_type, size_t, size_t, size_type, size_type>> nodes;
+    
+    auto left_bound = [&](int t) { return get<3>(nodes[lex_ranges[t].top().second]); };
+    auto right_bound = [&](int t) { return get<4>(nodes[lex_ranges[t].top().second]); };
+    auto range_size = [&](int t) {
+        auto& node = nodes[lex_ranges[t].top().second];
+        return get<4>(node) - get<3>(node) + 1;
+    };
+        
+    auto add_node = [&](node_type node) 
+    { 
+        cnt_nodes++;
+        auto range = wts.value_range(node);
+        nodes.emplace_back(node, 0, 0, get<0>(range), get<1>(range)); 
+        return nodes.size() - 1; 
+    };
+    auto split_node = [&](int t) 
+    { 
+        auto top = lex_ranges[t].top(); lex_ranges[t].pop();
+        auto node_id = top.second;
+        if (get<1>(nodes[node_id]) == 0) 
+        {
+            auto children = wts.expand(get<0>(nodes[node_id]));
+            auto id0 = add_node(children[0]);
+            auto id1 = add_node(children[1]);
+            get<1>(nodes[node_id]) = id0; // without those helper variables, this operation would NOT change the LHS!
+            get<2>(nodes[node_id]) = id1;
+        }
+        auto exp_range = wts.expand(get<0>(nodes[node_id]), top.first);
+        if (!empty(exp_range[1]))
+            lex_ranges[t].emplace(exp_range[1], get<2>(nodes[node_id]));
+        if (!empty(exp_range[0]))
+            lex_ranges[t].emplace(exp_range[0], get<1>(nodes[node_id]));
+    };
+    
+    size_type sp = 1, ep = 0;
+    if (0 == backward_search(csa, 0, csa.size()-1, s1.begin(), s1.end(), sp, ep))
+        return 0;
+    lex_ranges[0].emplace(range_type(sp, ep),0);
+    if (0 == backward_search(csa, 0, csa.size()-1, s2.begin(), s2.end(), sp, ep))
+        return 0;
+    lex_ranges[1].emplace(range_type(sp, ep),0);
+    add_node(wts.root());
+        
+    size_t result = 0;
+
+    deque<size_t> b_values;
+    while (!lex_ranges[0].empty() && !lex_ranges[1].empty())
     {
-        cout << res[0] << " " << res[1] << " " << res[2] << endl;
-        ++cnt;
+        if (right_bound(0) + s1_size_max_gap < left_bound(1))
+            lex_ranges[0].pop();
+        else if (left_bound(0) + s1_size_min_gap > right_bound(1))
+            lex_ranges[1].pop();
+        // Known: current ranges are non-empty and gap-overlapping => expand/report
+        else if (wts.is_leaf(get<0>(nodes[lex_ranges[1].top().second])))
+        {
+            // KNOWN: expansion expands 0 first
+            // => 1 is leaf later 
+            // => 0 is also a leaf
+            // => both ranges are equal in size (= 1)
+                            
+            b_values.push_back(left_bound(1));
+            lex_ranges[1].pop();
+                        
+            while (!lex_ranges[0].empty() 
+                && !b_values.empty()
+                && left_bound(0) + s1_size_min_gap <= b_values.back())
+            {
+                // next A
+                if (wts.is_leaf(get<0>(nodes[lex_ranges[0].top().second])))
+                {
+                    auto a = left_bound(0);
+                    lex_ranges[0].pop(); //cout << "PA: " << a << endl;
+                    
+                    // shrink B range
+                    while (!b_values.empty() && a + s1_size_min_gap > b_values.front())
+                        b_values.pop_front();
+                    // expand B range
+                    while (!lex_ranges[1].empty() && a + s1_size_max_gap >= left_bound(1))
+                    {
+                        if (wts.is_leaf(get<0>(nodes[lex_ranges[1].top().second])))
+                        {                    
+                            b_values.push_back(left_bound(1));
+                            lex_ranges[1].pop(); //cout << "PB: " << left_bound(1) << endl;
+                        }
+                        else
+                            split_node(1);
+                    }
+                    // end expand B range
+                    
+                    // report
+                    for (auto it = b_values.begin(); it != b_values.end(); ++it, ++result)
+                        callback(a, *it+s2_size-1);
+                }
+                else
+                    split_node(0);
+            }
+        }
+        else
+            split_node(range_size(1) > range_size(0) ? 1 : 0);
     }
-    return cnt;
+    
+    //cerr << "Processed nodes: " << cnt_nodes << " (" <<wts.size() << ")" << endl;
+    return result;
 }
 
 int main(int argc, char* argv[])
@@ -116,7 +210,7 @@ int main(int argc, char* argv[])
     };
     std::function<void(size_type a, size_type b)> callback_nop = [](size_type a, size_type b) { (void)a; (void)b; };
 
-    bool test_and_bench = false;
+    bool test_and_bench = true;
     if (test_and_bench)
     {
         // TESTS
@@ -207,14 +301,8 @@ int main(int argc, char* argv[])
         size_t max2_gap = 0;
         string s1, s2, s3;
         cout << "PROMPT: " << endl;
-        //while (cin >> s1 >> s2 >> min_gap >> max_gap)
-        //    cout << match_dfs(index, s1, s2, min_gap, max_gap, callback_cout) << " matches found" << endl;
-        while (cin >> s1 >> min1_gap >> max1_gap >> s2 >> min2_gap >> max2_gap >> s3)
-            cout << match3_dfs(index, 
-                incremental_wildcard_pattern(s1, min1_gap, max1_gap),
-                incremental_wildcard_pattern(s2, min2_gap, max2_gap),
-                s3
-                ) << " matches found" << endl;
+        while (cin >> s1 >> s2 >> min_gap >> max_gap)
+            cout << match_dfs(index, s1, s2, min_gap, max_gap, callback_cout) << " matches found" << endl;
     }
     err:;
 }
