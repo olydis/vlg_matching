@@ -53,9 +53,23 @@ template <typename type_matching_index>
 size_t match_dfs(type_matching_index& index, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(typename type_matching_index::size_type a, typename type_matching_index::size_type b)> callback)
 {
     size_t cnt = 0;
-    for (auto res : index.match2(s1, s2, min_gap, max_gap))
+    for (auto res : index.match2(incremental_wildcard_pattern(s1, min_gap, max_gap), s2))
     {
         callback(res.first, res.second);
+        ++cnt;
+    }
+    return cnt;
+}
+
+template <typename type_matching_index>
+size_t match_dfs_ex(type_matching_index& index, 
+    incremental_wildcard_pattern p1, 
+    string s)
+{
+    size_t cnt = 0;
+    for (auto res : index.match2(p1, s))
+    {
+        cout << res.first << " " << res.second << endl;
         ++cnt;
     }
     return cnt;
@@ -116,8 +130,8 @@ int main(int argc, char* argv[])
     };
     std::function<void(size_type a, size_type b)> callback_nop = [](size_type a, size_type b) { (void)a; (void)b; };
 
-    bool test_and_bench = false;
-    if (test_and_bench)
+    bool test_and_bench = true;
+    if (test_and_bench) 
     {
         // TESTS
         auto test = [&](string s1, string s2, size_t min_gap, size_t max_gap) 
@@ -179,7 +193,7 @@ int main(int argc, char* argv[])
             cout << "BENCH_DFS: " << duration_cast<milliseconds>(stop-start).count() << "ms for " << found << " occurrences" << endl;
         
             found = 0;
-            start = timer::now();
+            start = timer::now(); 
             for (unsigned int tci = 0; tci < tcs.size(); tci++)
             {
                 auto s1 = tcs[tci].first;

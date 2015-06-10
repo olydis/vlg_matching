@@ -43,6 +43,7 @@ struct incremental_wildcard_pattern
     const string pattern;
     const size_t min_gap;
     const size_t max_gap;
+    const string except;
 
     const size_t total_min_size;
     const size_t total_max_size;
@@ -51,6 +52,7 @@ struct incremental_wildcard_pattern
             pattern(""), 
             min_gap(0),
             max_gap(0),
+            except(""),
             total_min_size(0),
             total_max_size(0)
     { }
@@ -58,10 +60,12 @@ struct incremental_wildcard_pattern
     incremental_wildcard_pattern(
         const string pattern,
         const size_t min_gap,
-        const size_t max_gap) : 
+        const size_t max_gap,
+        const string except = "") : 
             pattern(pattern),
             min_gap(min_gap),
             max_gap(max_gap),
+            except(except),
             total_min_size(pattern.size() + min_gap),
             total_max_size(pattern.size() + max_gap)
     {
@@ -146,9 +150,8 @@ private:
     size_t b_idx = -1;
     deque<size_t> b_values;
 
-    size_t s1_size_min_gap;
-    size_t s1_size_max_gap;
-    size_t s2_size;
+    incremental_wildcard_pattern p1;
+    size_t s_size;
 
     result_type current;
 
@@ -167,10 +170,10 @@ private:
     void adjust_b_range()
     {
         // shrink
-        while (!b_values.empty() && a + s1_size_min_gap > b_values.front())
+        while (!b_values.empty() && a + p1.total_min_size > b_values.front())
             b_values.pop_front();
         // expand
-        while (!lex_ranges[1].empty() && a + s1_size_max_gap >= lex_ranges[1].top().second->range_begin)
+        while (!lex_ranges[1].empty() && a + p1.total_max_size >= lex_ranges[1].top().second->range_begin)
         {
             if (lex_ranges[1].top().second->is_leaf)
             {                    
@@ -189,7 +192,7 @@ private:
         // find next connected match
         while (!lex_ranges[0].empty() 
             && !b_values.empty()
-            && lex_ranges[0].top().second->range_begin + s1_size_min_gap <= b_values.back())
+            && lex_ranges[0].top().second->range_begin + p1.total_min_size <= b_values.back())
         {
             if (lex_ranges[0].top().second->is_leaf)
             {
@@ -208,9 +211,9 @@ private:
         {
             const auto& top0 = lex_ranges[0].top().second;
             const auto& top1 = lex_ranges[1].top().second;
-            if (top0->range_end + s1_size_max_gap < top1->range_begin)
+            if (top0->range_end + p1.total_max_size < top1->range_begin)
                 lex_ranges[0].pop();
-            else if (top0->range_begin + s1_size_min_gap > top1->range_end)
+            else if (top0->range_begin + p1.total_min_size > top1->range_end)
                 lex_ranges[1].pop();
             else if (top0->is_leaf && top1->is_leaf)
             {
@@ -235,25 +238,29 @@ private:
         if (!valid() && !next_batch())
             return; // end
 
-        current = make_pair(a, b_values[b_idx]+s2_size-1);
+        current = make_pair(a, b_values[b_idx]+s_size-1);
     }
 
 public:
     wild_card_match_iterator()
     {
     }
-    wild_card_match_iterator(const type_csa& csa, const type_wt& wts, string s1, string s2, size_t min_gap, size_t max_gap) : wts(wts)
+    wild_card_match_iterator(const type_csa& csa, const type_wt& wts, 
+        incremental_wildcard_pattern p1, 
+        string s) 
+        : wts(wts), p1(p1)
     {
-        s2_size = s2.size();
-        s1_size_min_gap = s1.size() + min_gap;
-        s1_size_max_gap = s1.size() + max_gap;
+        s_size = s.size();
         
         auto root_node = make_shared<node_cache<type_csa, type_wt>>(this->wts.root(), &this->wts);
         size_type sp = 1, ep = 0;
-        if (0 != backward_search(csa, 0, csa.size()-1, s1.begin(), s1.end(), sp, ep))
+        if (0 != backward_search(csa, 0, csa.size()-1, p1.pattern.begin(), p1.pattern.end(), sp, ep))
             lex_ranges[0].emplace(range_type(sp, ep),root_node);
-        if (0 != backward_search(csa, 0, csa.size()-1, s2.begin(), s2.end(), sp, ep))
+        if (0 != backward_search(csa, 0, csa.size()-1, s.begin(), s.end(), sp, ep))
             lex_ranges[1].emplace(range_type(sp, ep),root_node);
+        if (p1.except != "")
+            if (0 != backward_search(csa, 0, csa.size()-1, p1.except.begin(), p1.except.end(), sp, ep))
+                lex_ranges[2].emplace(range_type(sp, ep),root_node);
 
         next();
     }
@@ -314,7 +321,7 @@ private:
 
     type_wt wts;
     size_t a;
-    size_t b_idx = -1;
+    size_t b_idx = 0;
     deque<size_t> b_values;
     size_t c_idx = -1;
     deque<size_t> c_values;
@@ -419,7 +426,11 @@ private:
 
     void next()
     {
-        ++b_idx;
+        ++c_idx;
+        if (c_idx < c_values.size())
+        {
+            c_idx = 0;
+        }
         if (!valid() && !next_batch())
             return; // end
 
@@ -451,7 +462,7 @@ public:
 
     bool valid() const
     {
-        return b_idx < b_values.size();
+        return c_idx < c_values.size();
     }
 
     result_type operator*() const
@@ -524,20 +535,22 @@ public:
     {
     }   
     
-    matching_result<iterator> match2(string s1, string s2, size_t min_gap, size_t max_gap)
+    matching_result<iterator> match2(
+        incremental_wildcard_pattern p1,
+        string s)
     {
         return matching_result<iterator>(
-            wild_card_match_iterator<csa_type, wt_type>(csa, wt, s1, s2, min_gap, max_gap),
+            wild_card_match_iterator<csa_type, wt_type>(csa, wt, p1, s),
             wild_card_match_iterator<csa_type, wt_type>());
     }
     
     matching_result<wild_card_match_iterator3<csa_type, wt_type>> match3(
-        incremental_wildcard_pattern i1, 
-        incremental_wildcard_pattern i2,
+        incremental_wildcard_pattern p1, 
+        incremental_wildcard_pattern p2,
         string s)
     {
         return matching_result<wild_card_match_iterator3<csa_type, wt_type>>(
-            wild_card_match_iterator3<csa_type, wt_type>(csa, wt, i1, i2, s),
+            wild_card_match_iterator3<csa_type, wt_type>(csa, wt, p1, p2, s),
             wild_card_match_iterator3<csa_type, wt_type>());
     }
 };
