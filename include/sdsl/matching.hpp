@@ -147,6 +147,47 @@ struct node_cache
 };
 
 template<class type_index>
+class wavelet_tree_range_walker
+{
+private:
+    const type_index& index;
+    stack<pair<range_type,shared_ptr<node_cache<type_index>>>> dfs_stack;
+        
+public:
+    wavelet_tree_range_walker(const type_index& index, range_type initial_range, shared_ptr<node_cache<type_index>> root_node)
+        : index(index)
+    {
+        dfs_stack.emplace(initial_range, root_node);
+    }
+    
+    void split()
+    {
+        auto top = dfs_stack.top(); dfs_stack.pop();
+        auto& node = top.second;
+        node->ensure_children();
+        auto exp_range = index.wt.expand(node->node, top.first);
+        if (!sdsl::empty(exp_range[1]))
+            dfs_stack.emplace(exp_range[1], node->children.second);
+        if (!sdsl::empty(exp_range[0]))
+            dfs_stack.emplace(exp_range[0], node->children.first);
+    };
+    
+    bool empty()
+    {
+        return dfs_stack.empty();
+    }
+    
+    shared_ptr<node_cache<type_index>> current_node()
+    {
+        return dfs_stack.top().second;
+    }
+    void next()
+    {
+        dfs_stack.pop();
+    }
+};
+
+template<class type_index>
 class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag, pair<typename type_index::size_type, typename type_index::size_type>>
 {
 private:
@@ -156,7 +197,7 @@ private:
     typedef pair<size_type, size_type>     result_type;
 
     // (lex_range, node)
-    array<stack<pair<range_type,shared_ptr<node_cache<type_index>>> >, 2> lex_ranges;
+    vector<wavelet_tree_range_walker<type_index>> lex_ranges;
 
     wt_type wts;
     size_t a;
@@ -167,18 +208,6 @@ private:
     incremental_wildcard_pattern p1;
 
     result_type current;
-
-    void split_node(int t)
-    {
-        auto top = lex_ranges[t].top(); lex_ranges[t].pop();
-        auto& node = top.second;
-        node->ensure_children();
-        auto exp_range = wts.expand(node->node, top.first);
-        if (!empty(exp_range[1]))
-            lex_ranges[t].emplace(exp_range[1], node->children.second);
-        if (!empty(exp_range[0]))
-            lex_ranges[t].emplace(exp_range[0], node->children.first);
-    };
     
     void adjust_b_range()
     {
@@ -187,16 +216,16 @@ private:
             b_values.pop_front();
         // expand
         while (!lex_ranges[1].empty() 
-            && a + p1.max_gap >= lex_ranges[1].top().second->range_begin
-            && a_doc == lex_ranges[1].top().second->range_begin_doc)
+            && a + p1.max_gap >= lex_ranges[1].current_node()->range_begin
+            && a_doc == lex_ranges[1].current_node()->range_begin_doc)
         {
-            if (lex_ranges[1].top().second->is_leaf)
+            if (lex_ranges[1].current_node()->is_leaf)
             {                    
-                b_values.push_back(lex_ranges[1].top().second->range_begin);
-                lex_ranges[1].pop();
+                b_values.push_back(lex_ranges[1].current_node()->range_begin);
+                lex_ranges[1].next();
             }
             else
-                split_node(1);
+                lex_ranges[1].split();
         }
     }
 
@@ -207,44 +236,44 @@ private:
         // find next connected match
         while (!lex_ranges[0].empty() 
             && !b_values.empty()
-            && lex_ranges[0].top().second->range_begin + p1.min_gap <= b_values.back())
+            && lex_ranges[0].current_node()->range_begin + p1.min_gap <= b_values.back())
         {
-            if (lex_ranges[0].top().second->is_leaf)
+            if (lex_ranges[0].current_node()->is_leaf)
             {
-                a = lex_ranges[0].top().second->range_begin;
-                a_doc = lex_ranges[0].top().second->range_begin_doc;
-                lex_ranges[0].pop();
+                a = lex_ranges[0].current_node()->range_begin;
+                a_doc = lex_ranges[0].current_node()->range_begin_doc;
+                lex_ranges[0].next();
                 adjust_b_range();
                 if (!b_values.empty())
                     return true;
             }
             else
-                split_node(0);
+                lex_ranges[0].split();
         }
             
         // find next independent match
         while (!lex_ranges[0].empty() && !lex_ranges[1].empty())
         {
-            const auto& top0 = lex_ranges[0].top().second;
-            const auto& top1 = lex_ranges[1].top().second;
+            const auto& top0 = lex_ranges[0].current_node();
+            const auto& top1 = lex_ranges[1].current_node();
             if (top0->range_end_doc < top1->range_begin_doc)
-                lex_ranges[0].pop();
+                lex_ranges[0].next();
             else if (top0->range_end + p1.max_gap < top1->range_begin)
-                lex_ranges[0].pop();
+                lex_ranges[0].next();
             else if (top0->range_begin + p1.min_gap > top1->range_end)
-                lex_ranges[1].pop();
+                lex_ranges[1].next();
             else if (top0->is_leaf && top1->is_leaf)
             {
                 a = top0->range_begin;
                 a_doc = top0->range_begin_doc;
                 b_values.push_back(top1->range_begin);
-                lex_ranges[0].pop();
-                lex_ranges[1].pop();
+                lex_ranges[0].next();
+                lex_ranges[1].next();
                 adjust_b_range();
                 return true;
             }
             else
-                split_node(top1->range_size() > top0->range_size() ? 1 : 0);
+                lex_ranges[top1->range_size() > top0->range_size() ? 1 : 0].split();
         }
 
         b_values.clear();
@@ -271,13 +300,18 @@ public:
     {
         auto root_node = make_shared<node_cache<type_index>>(this->wts.root(), index, nullptr, nullptr);
         size_type sp = 1, ep = 0;
-        if (0 != backward_search(index.csa, 0, index.csa.size()-1, s.begin(), s.end(), sp, ep))
-            lex_ranges[0].emplace(range_type(sp, ep),root_node);
-        if (0 != backward_search(index.csa, 0, index.csa.size()-1, p1.pattern.begin(), p1.pattern.end(), sp, ep))
-            lex_ranges[1].emplace(range_type(sp, ep),root_node);
+        
+        backward_search(index.csa, 0, index.csa.size()-1, s.begin(), s.end(), sp, ep);
+        lex_ranges.emplace_back(index, range_type(sp, ep),root_node);
+        
+        backward_search(index.csa, 0, index.csa.size()-1, p1.pattern.begin(), p1.pattern.end(), sp, ep);
+        lex_ranges.emplace_back(index, range_type(sp, ep),root_node);
+        
         if (p1.except != "")
-            if (0 != backward_search(index.csa, 0, index.csa.size()-1, p1.except.begin(), p1.except.end(), sp, ep))
-                lex_ranges[2].emplace(range_type(sp, ep),root_node);
+        {
+            backward_search(index.csa, 0, index.csa.size()-1, p1.except.begin(), p1.except.end(), sp, ep);
+            lex_ranges.emplace_back(index, range_type(sp, ep),root_node);
+        }
 
         next();
     }

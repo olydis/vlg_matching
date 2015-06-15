@@ -219,7 +219,7 @@ int main(int argc, char* argv[])
         //size_t max2_gap;
         string s1, s2, s3;
         cout << "PROMPT: " << endl;
-        while (cin >> s1 >> s2 >> min1_gap >> max1_gap)
+        while (cin >> s1 >> s2 >> min1_gap >> max1_gap && max1_gap >= min1_gap)
             compare(s1, s2, min1_gap, max1_gap);
             //cout << match_dfs(index, s1, s2, min1_gap, max1_gap, callback_cout) << " matches found" << endl;
         //while (cin >> s1 >> min1_gap >> max1_gap >> s2 >> min2_gap >> max2_gap >> s3)
