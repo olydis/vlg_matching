@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
     };
     std::function<void(size_type a, size_type b)> callback_nop = [](size_type a, size_type b) { (void)a; (void)b; };
 
-    auto compare = [&](string s1, string s2, size_t min_gap, size_t max_gap) 
+    auto compare = [=](string s1, string s2, size_t min_gap, size_t max_gap) 
     { 
         cout << "Comparing with: s1=" << s1 << ", s2=" << s2 << ", min_gap=" << min_gap << ", max_gap=" << max_gap << endl;
         
@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
         return success;
     };
     
-    bool test_and_bench = false;
+    bool test_and_bench = true;
     if (test_and_bench)
     {
         // TESTS

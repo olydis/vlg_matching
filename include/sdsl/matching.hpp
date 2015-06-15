@@ -38,6 +38,9 @@ using namespace std;
 namespace sdsl
 {
 
+template<class t_csa, class t_wt>
+class matching_index;
+
 struct incremental_wildcard_pattern
 {
     const string pattern;
@@ -94,7 +97,7 @@ struct node_cache
     typedef typename type_wt::node_type  node_type;
     typedef typename type_csa::size_type size_type;
     
-    type_wt *wts;
+    type_wt wts;
     node_type node;
     pair<shared_ptr<node_cache>, shared_ptr<node_cache>> children;
     size_type range_begin;
@@ -106,22 +109,22 @@ struct node_cache
         return range_end - range_begin;
     }
     
-    node_cache(node_type node, type_wt *wts)
+    node_cache(node_type node, type_wt wts)
     {
         this->wts = wts;
         this->node = node;
         this->children = make_pair(nullptr, nullptr);
-        auto range = wts->value_range(node);
+        auto range = wts.value_range(node);
         this->range_begin = get<0>(range);
         this->range_end = get<1>(range);
-        this->is_leaf = wts->is_leaf(node);
+        this->is_leaf = wts.is_leaf(node);
     }
     
     void ensure_children()
     {
         if (children.first == nullptr)
         {
-            auto children = wts->expand(node);
+            auto children = wts.expand(node);
             this->children = make_pair(make_shared<node_cache>(children[0], wts), make_shared<node_cache>(children[1], wts));
         }
     }
@@ -237,19 +240,19 @@ public:
     wild_card_match_iterator()
     {
     }
-    wild_card_match_iterator(const type_csa& csa, const type_wt& wts, 
+    wild_card_match_iterator(const matching_index<type_csa, type_wt>& index, 
         string s, 
         incremental_wildcard_pattern p1) 
-        : wts(wts), p1(p1)
+        : wts(index.wt), p1(p1)
     {
-        auto root_node = make_shared<node_cache<type_csa, type_wt>>(this->wts.root(), &this->wts);
+        auto root_node = make_shared<node_cache<type_csa, type_wt>>(this->wts.root(), this->wts);
         size_type sp = 1, ep = 0;
-        if (0 != backward_search(csa, 0, csa.size()-1, s.begin(), s.end(), sp, ep))
+        if (0 != backward_search(index.csa, 0, index.csa.size()-1, s.begin(), s.end(), sp, ep))
             lex_ranges[0].emplace(range_type(sp, ep),root_node);
-        if (0 != backward_search(csa, 0, csa.size()-1, p1.pattern.begin(), p1.pattern.end(), sp, ep))
+        if (0 != backward_search(index.csa, 0, index.csa.size()-1, p1.pattern.begin(), p1.pattern.end(), sp, ep))
             lex_ranges[1].emplace(range_type(sp, ep),root_node);
         if (p1.except != "")
-            if (0 != backward_search(csa, 0, csa.size()-1, p1.except.begin(), p1.except.end(), sp, ep))
+            if (0 != backward_search(index.csa, 0, index.csa.size()-1, p1.except.begin(), p1.except.end(), sp, ep))
                 lex_ranges[2].emplace(range_type(sp, ep),root_node);
 
         next();
@@ -331,12 +334,12 @@ public:
     }   
     
     matching_result<iterator> match2(
-        string s,
-        incremental_wildcard_pattern p1
-        )
+        const string s,
+        const incremental_wildcard_pattern p1
+        ) const
     {
         return matching_result<iterator>(
-            wild_card_match_iterator<csa_type, wt_type>(csa, wt, s, p1),
+            wild_card_match_iterator<csa_type, wt_type>(*this, s, p1),
             wild_card_match_iterator<csa_type, wt_type>());
     }
 };
