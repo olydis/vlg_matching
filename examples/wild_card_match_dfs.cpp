@@ -10,16 +10,16 @@ using namespace std::chrono;
 using timer = std::chrono::high_resolution_clock;
  
 
-template <typename type_csa, typename type_wt>
-size_t match_ref(type_csa csa, type_wt wts, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(typename type_csa::size_type a, typename type_csa::size_type b)> callback)
+template <typename type_index>
+size_t match_ref(type_index index, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(typename type_index::size_type a, typename type_index::size_type b)> callback)
 {
-    using size_type = typename type_csa::size_type;
+    using size_type = typename type_index::size_type;
 
     size_type sp1, ep1;
-    auto cnt1 = backward_search(csa, 0, csa.size()-1, s1.begin(), s1.end(), sp1, ep1);
+    auto cnt1 = backward_search(index.csa, 0, index.csa.size()-1, s1.begin(), s1.end(), sp1, ep1);
 
     size_type sp2, ep2;
-    auto cnt2 = backward_search(csa, 0, csa.size()-1, s2.begin(), s2.end(), sp2, ep2);
+    auto cnt2 = backward_search(index.csa, 0, index.csa.size()-1, s2.begin(), s2.end(), sp2, ep2);
 
     vector<size_type> p2;
 
@@ -27,21 +27,24 @@ size_t match_ref(type_csa csa, type_wt wts, string s1, string s2, size_t min_gap
         return 0;
 
     for (auto i2 = sp2; i2 <= ep2; i2++)
-        p2.push_back(wts[i2]);
+        p2.push_back(index.wt[i2]);
 
     sort(p2.begin(), p2.end());
 
     size_t result = 0;
     for (auto i1 = sp1; i1 <= ep1; i1++)
     {
-        size_type l1 = wts[i1];
+        size_type l1 = index.wt[i1];
         auto i2a = lower_bound(p2.begin(), p2.end(), l1 + min_gap);
         auto i2b = upper_bound(p2.begin(), p2.end(), l1 + max_gap);
 
         for (auto i2 = i2a; i2 < i2b; i2++)
         {
-            callback(l1, *i2);
-            result++;
+            if (index.get_document_index(l1) == index.get_document_index(*i2))
+            {
+                callback(l1, *i2);
+                result++;
+            }
         } 
     }
     return result;
@@ -91,7 +94,14 @@ int main(int argc, char* argv[])
 
     util::delete_all_files(cc.file_map);
 
-    matching_index<> index(csa, wts);
+
+    // doc boundaries
+    bit_vector dbs(wts.size(), 0);
+    for (size_t i = 0; i < dbs.size(); i++)
+        dbs[i] = csa.text[i] == '\n';
+        
+
+    matching_index<> index(csa, wts, dbs);
 
     cout<<"wts.size()="<<wts.size()<<endl;
     if ( wts.size() < 100 ){
@@ -118,7 +128,7 @@ int main(int argc, char* argv[])
         cout << "Comparing with: s1=" << s1 << ", s2=" << s2 << ", min_gap=" << min_gap << ", max_gap=" << max_gap << endl;
         
         size_t matches = match_dfs(index, s1, s2, min_gap, max_gap, callback_cout);
-        size_t matches_ref = match_ref(csa, wts, s1, s2, min_gap, max_gap, callback_nop);
+        size_t matches_ref = match_ref(index, s1, s2, min_gap, max_gap, callback_nop);
             
         bool success = matches == matches_ref;
         if (!success)
@@ -188,12 +198,12 @@ int main(int argc, char* argv[])
                 auto s2 = tcs[tci].second;
                 for (int i = 0; i <= max; i += 3)
                 { 
-                    found += match_ref(csa, wts, s1, s2, i, max, callback_nop);
-                    found += match_ref(csa, wts, s1, s2, 0, i, callback_nop);
-                    found += match_ref(csa, wts, s1, s2, i, i, callback_nop);
-                    found += match_ref(csa, wts, s1, s2, i, 2*i, callback_nop);
-                    found += match_ref(csa, wts, s1, s2, 10 * i, 10 * i + 3, callback_nop);
-                    found += match_ref(csa, wts, s1, s2, 10 * i, 10 * i + 10, callback_nop);
+                    found += match_ref(index, s1, s2, i, max, callback_nop);
+                    found += match_ref(index, s1, s2, 0, i, callback_nop);
+                    found += match_ref(index, s1, s2, i, i, callback_nop);
+                    found += match_ref(index, s1, s2, i, 2*i, callback_nop);
+                    found += match_ref(index, s1, s2, 10 * i, 10 * i + 3, callback_nop);
+                    found += match_ref(index, s1, s2, 10 * i, 10 * i + 10, callback_nop);
                 }
             }
             stop = timer::now();

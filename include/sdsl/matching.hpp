@@ -38,7 +38,7 @@ using namespace std;
 namespace sdsl
 {
 
-template<class t_csa, class t_wt>
+template<class t_csa, class t_wt, class t_bv>
 class matching_index;
 
 struct incremental_wildcard_pattern
@@ -91,17 +91,19 @@ public:
     }
 };
 
-template<class type_csa, class type_wt>
+template<class type_index>
 struct node_cache
 {
-    typedef typename type_wt::node_type  node_type;
-    typedef typename type_csa::size_type size_type;
+    typedef typename type_index::node_type node_type;
+    typedef typename type_index::size_type size_type;
     
-    type_wt wts;
+    const type_index& index;
     node_type node;
     pair<shared_ptr<node_cache>, shared_ptr<node_cache>> children;
     size_type range_begin;
     size_type range_end;
+    size_type range_begin_doc;
+    size_type range_end_doc;
     bool is_leaf;
     
     size_type range_size()
@@ -109,40 +111,56 @@ struct node_cache
         return range_end - range_begin;
     }
     
-    node_cache(node_type node, type_wt wts)
+    node_cache(
+        node_type node, 
+        const type_index& index, 
+        size_type* range_begin_doc, 
+        size_type* range_end_doc)
+        : index(index)
     {
-        this->wts = wts;
         this->node = node;
         this->children = make_pair(nullptr, nullptr);
-        auto range = wts.value_range(node);
+        auto range = index.wt.value_range(node);
         this->range_begin = get<0>(range);
         this->range_end = get<1>(range);
-        this->is_leaf = wts.is_leaf(node);
+        this->range_begin_doc = 
+            range_begin_doc == nullptr ? index.get_document_index(range_begin) : *range_begin_doc;
+        this->range_end_doc = 
+            range_end_doc == nullptr ? index.get_document_index(range_end) : *range_end_doc;
+        this->is_leaf = index.wt.is_leaf(node);
     }
     
     void ensure_children()
     {
         if (children.first == nullptr)
         {
-            auto children = wts.expand(node);
-            this->children = make_pair(make_shared<node_cache>(children[0], wts), make_shared<node_cache>(children[1], wts));
+            size_type* range_begin_doc = &this->range_begin_doc;
+            size_type* range_center_doc = this->range_begin_doc == this->range_end_doc ? range_begin_doc : nullptr;
+            size_type* range_end_doc = &this->range_end_doc;
+            
+            auto children = index.wt.expand(node);
+            this->children = make_pair(
+                make_shared<node_cache>(children[0], index, range_begin_doc, range_center_doc), 
+                make_shared<node_cache>(children[1], index, range_center_doc, range_end_doc));
         }
     }
 };
 
-template<class type_csa, class type_wt>
-class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag, pair<typename type_csa::size_type, typename type_csa::size_type>>
+template<class type_index>
+class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag, pair<typename type_index::size_type, typename type_index::size_type>>
 {
 private:
-    typedef typename type_wt::node_type  node_type;
-    typedef typename type_csa::size_type size_type;
-    typedef pair<size_type, size_type>   result_type;
+    typedef typename type_index::node_type node_type;
+    typedef typename type_index::size_type size_type;
+    typedef typename type_index::wt_type   wt_type;
+    typedef pair<size_type, size_type>     result_type;
 
     // (lex_range, node)
-    array<stack<pair<range_type,shared_ptr<node_cache<type_csa, type_wt>>> >, 2> lex_ranges;
+    array<stack<pair<range_type,shared_ptr<node_cache<type_index>>> >, 2> lex_ranges;
 
-    type_wt wts;
+    wt_type wts;
     size_t a;
+    size_t a_doc;
     size_t b_idx = -1;
     deque<size_t> b_values;
 
@@ -168,7 +186,9 @@ private:
         while (!b_values.empty() && a + p1.min_gap > b_values.front())
             b_values.pop_front();
         // expand
-        while (!lex_ranges[1].empty() && a + p1.max_gap >= lex_ranges[1].top().second->range_begin)
+        while (!lex_ranges[1].empty() 
+            && a + p1.max_gap >= lex_ranges[1].top().second->range_begin
+            && a_doc == lex_ranges[1].top().second->range_begin_doc)
         {
             if (lex_ranges[1].top().second->is_leaf)
             {                    
@@ -192,6 +212,7 @@ private:
             if (lex_ranges[0].top().second->is_leaf)
             {
                 a = lex_ranges[0].top().second->range_begin;
+                a_doc = lex_ranges[0].top().second->range_begin_doc;
                 lex_ranges[0].pop();
                 adjust_b_range();
                 if (!b_values.empty())
@@ -206,13 +227,16 @@ private:
         {
             const auto& top0 = lex_ranges[0].top().second;
             const auto& top1 = lex_ranges[1].top().second;
-            if (top0->range_end + p1.max_gap < top1->range_begin)
+            if (top0->range_end_doc < top1->range_begin_doc)
+                lex_ranges[0].pop();
+            else if (top0->range_end + p1.max_gap < top1->range_begin)
                 lex_ranges[0].pop();
             else if (top0->range_begin + p1.min_gap > top1->range_end)
                 lex_ranges[1].pop();
             else if (top0->is_leaf && top1->is_leaf)
             {
                 a = top0->range_begin;
+                a_doc = top0->range_begin_doc;
                 b_values.push_back(top1->range_begin);
                 lex_ranges[0].pop();
                 lex_ranges[1].pop();
@@ -240,12 +264,12 @@ public:
     wild_card_match_iterator()
     {
     }
-    wild_card_match_iterator(const matching_index<type_csa, type_wt>& index, 
+    wild_card_match_iterator(const type_index& index, 
         string s, 
         incremental_wildcard_pattern p1) 
         : wts(index.wt), p1(p1)
     {
-        auto root_node = make_shared<node_cache<type_csa, type_wt>>(this->wts.root(), this->wts);
+        auto root_node = make_shared<node_cache<type_index>>(this->wts.root(), index, nullptr, nullptr);
         size_type sp = 1, ep = 0;
         if (0 != backward_search(index.csa, 0, index.csa.size()-1, s.begin(), s.end(), sp, ep))
             lex_ranges[0].emplace(range_type(sp, ep),root_node);
@@ -302,36 +326,50 @@ public:
 };
 
 template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>, 
-         class t_wt=wt_int<bit_vector, rank_support_v5<>, select_support_scan<1>, select_support_scan<0>>>
+         class t_wt=wt_int<bit_vector, rank_support_v5<>, select_support_scan<1>, select_support_scan<0>>,
+         class t_bv=rrr_vector<>>
 class matching_index
 {
     static_assert(std::is_same<typename index_tag<t_csa>::type, csa_tag>::value,
         "First template argument has to be a suffix array.");
     static_assert(std::is_same<typename index_tag<t_wt>::type, wt_tag>::value,
         "Second template argument has to be a wavelet tree.");
+    static_assert(std::is_same<typename index_tag<t_bv>::type, bv_tag>::value,
+        "Third template argument has to be a bitvector.");
 
 private:
-    typedef t_csa                        csa_type;
-    typedef t_wt                         wt_type;
-    typedef typename wt_type::node_type  node_type;
+    typedef matching_index<t_csa, t_wt, t_bv> index_type;
 public:
-    typedef typename csa_type::size_type size_type;
-public:
-    typedef wild_card_match_iterator<csa_type, wt_type> iterator;
+    typedef t_csa                         csa_type;
+    typedef t_wt                          wt_type;
+    typedef t_bv                          bv_type;
+    typedef typename bv_type::rank_1_type rank_type;
+    typedef typename wt_type::node_type   node_type;
+    typedef typename csa_type::size_type  size_type;
+    
+    typedef wild_card_match_iterator<index_type> iterator;
 
 
 private:
-    const csa_type m_csa;
-    const wt_type  m_wt;
+    const csa_type  m_csa;
+    const wt_type   m_wt;
+    const bv_type   m_dbs; // 1 marks the END of a document
+    const rank_type m_dbs_rank;
 
 public:
     const csa_type& csa = m_csa;
     const wt_type&  wt  = m_wt;
     
-    matching_index(const csa_type csa, const wt_type wt)
-        : m_csa(csa), m_wt(wt)
+    matching_index(const csa_type csa, const wt_type wt, const bv_type dbs)
+        : m_csa(csa), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
     {
-    }   
+    }
+    
+    size_type get_document_index(size_type symbol_index) const
+    {
+        symbol_index = std::min(symbol_index, m_dbs.size() - 1);
+        return m_dbs_rank.rank(symbol_index);
+    }
     
     matching_result<iterator> match2(
         const string s,
@@ -339,8 +377,8 @@ public:
         ) const
     {
         return matching_result<iterator>(
-            wild_card_match_iterator<csa_type, wt_type>(*this, s, p1),
-            wild_card_match_iterator<csa_type, wt_type>());
+            wild_card_match_iterator<index_type>(*this, s, p1),
+            wild_card_match_iterator<index_type>());
     }
 };
 
