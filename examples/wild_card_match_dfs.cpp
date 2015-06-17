@@ -1,5 +1,6 @@
 #include <sdsl/suffix_arrays.hpp>
 #include <vector>
+#include <regex>
 #include <iostream>
 #include "../include/sdsl/matching.hpp"
 
@@ -10,42 +11,17 @@ using namespace std::chrono;
 using timer = std::chrono::high_resolution_clock;
  
 
-template <typename type_index>
-size_t match_ref(type_index index, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(typename type_index::size_type a, typename type_index::size_type b)> callback)
+size_t match_ref(string text, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(size_t a, size_t b)> callback)
 {
-    using size_type = typename type_index::size_type;
-
-    size_type sp1, ep1;
-    auto cnt1 = backward_search(index.csa, 0, index.csa.size()-1, s1.begin(), s1.end(), sp1, ep1);
-
-    size_type sp2, ep2;
-    auto cnt2 = backward_search(index.csa, 0, index.csa.size()-1, s2.begin(), s2.end(), sp2, ep2);
-
-    vector<size_type> p2;
-
-    if (cnt1 == 0 || cnt2 == 0)
-        return 0;
-
-    for (auto i2 = sp2; i2 <= ep2; i2++)
-        p2.push_back(index.wt[i2]);
-
-    sort(p2.begin(), p2.end());
-
+    basic_regex<char> regex("(" + s1 + ".*)(" + s2 + ")");
+    cmatch match;
+    
     size_t result = 0;
-    for (auto i1 = sp1; i1 <= ep1; i1++)
+    while (regex_search(text.c_str(), match, regex))
     {
-        size_type l1 = index.wt[i1];
-        auto i2a = lower_bound(p2.begin(), p2.end(), l1 + min_gap);
-        auto i2b = upper_bound(p2.begin(), p2.end(), l1 + max_gap);
-
-        for (auto i2 = i2a; i2 < i2b; i2++)
-        {
-            if (index.get_document_index(l1) == index.get_document_index(*i2))
-            {
-                callback(l1, *i2);
-                result++;
-            }
-        } 
+        ++result;
+        cout << match[0] << endl;
+        //callback(match.position, match.position + 1);
     }
     return result;
 }
@@ -87,6 +63,10 @@ int main(int argc, char* argv[])
 
     cache_config cc(false,".","WILD_CARD_MATCH_TMP");
     construct(csa, argv[1], cc, 1);
+    
+    ifstream tmp(argv[1]);
+    string text((istreambuf_iterator<char>(tmp)),
+                 istreambuf_iterator<char>());
 
     wt_int<bit_vector, rank_support_v5<>, select_support_scan<1>, select_support_scan<0>> wts;
     
@@ -123,12 +103,12 @@ int main(int argc, char* argv[])
     };
     std::function<void(size_type a, size_type b)> callback_nop = [](size_type a, size_type b) { (void)a; (void)b; };
 
-    auto compare = [=](string s1, string s2, size_t min_gap, size_t max_gap) 
+    auto compare = [&](string s1, string s2, size_t min_gap, size_t max_gap) 
     { 
         cout << "Comparing with: s1=" << s1 << ", s2=" << s2 << ", min_gap=" << min_gap << ", max_gap=" << max_gap << endl;
         
         size_t matches = match_dfs(index, s1, s2, min_gap, max_gap, callback_cout);
-        size_t matches_ref = match_ref(index, s1, s2, min_gap, max_gap, callback_nop);
+        size_t matches_ref = match_ref(text, s1, s2, min_gap, max_gap, callback_nop);
             
         bool success = matches == matches_ref;
         if (!success)
@@ -198,12 +178,12 @@ int main(int argc, char* argv[])
                 auto s2 = tcs[tci].second;
                 for (int i = 0; i <= max; i += 3)
                 { 
-                    found += match_ref(index, s1, s2, i, max, callback_nop);
-                    found += match_ref(index, s1, s2, 0, i, callback_nop);
-                    found += match_ref(index, s1, s2, i, i, callback_nop);
-                    found += match_ref(index, s1, s2, i, 2*i, callback_nop);
-                    found += match_ref(index, s1, s2, 10 * i, 10 * i + 3, callback_nop);
-                    found += match_ref(index, s1, s2, 10 * i, 10 * i + 10, callback_nop);
+                    found += match_ref(text, s1, s2, i, max, callback_nop);
+                    found += match_ref(text, s1, s2, 0, i, callback_nop);
+                    found += match_ref(text, s1, s2, i, i, callback_nop);
+                    found += match_ref(text, s1, s2, i, 2*i, callback_nop);
+                    found += match_ref(text, s1, s2, 10 * i, 10 * i + 3, callback_nop);
+                    found += match_ref(text, s1, s2, 10 * i, 10 * i + 10, callback_nop);
                 }
             }
             stop = timer::now();
