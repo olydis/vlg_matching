@@ -13,15 +13,20 @@ using timer = std::chrono::high_resolution_clock;
 
 size_t match_ref(string text, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(size_t a, size_t b)> callback)
 {
-    basic_regex<char> regex("(" + s1 + ".*)(" + s2 + ")");
-    cmatch match; 
+    const char* c_text = text.c_str();
+    std::ostringstream regex_stream;
+    regex_stream << "(" << s1 << ".{" << min_gap << "," << max_gap << "})(" << s2 << ")";
+
+    basic_regex<char> regex(regex_stream.str());
+    cmatch match;
     
     size_t result = 0;
-    while (regex_search(text.c_str(), match, regex))
+    size_t offset = 0;
+    while (regex_search(c_text + offset, match, regex))
     {
         ++result;
-        cout << match[0] << endl;
-        //callback(match.position, match.position + 1);
+        callback(offset + match.position(), offset + match.position() + match[0].length() - 1);
+        offset += match.position() + match.length();
     }
     return result;
 }
@@ -30,7 +35,9 @@ template <typename type_matching_index>
 size_t match_dfs(type_matching_index& index, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(typename type_matching_index::size_type a, typename type_matching_index::size_type b)> callback)
 {
     size_t cnt = 0;
-    for (auto res : index.match2(s1, incremental_wildcard_pattern(s2, min_gap, max_gap)))
+    for (auto res : index.match2(s1, incremental_wildcard_pattern(s2, 
+        s1.size() + min_gap, 
+        s1.size() + max_gap)))
     {
         callback(res.first, res.second);
         ++cnt;
@@ -107,8 +114,10 @@ int main(int argc, char* argv[])
     { 
         cout << "Comparing with: s1=" << s1 << ", s2=" << s2 << ", min_gap=" << min_gap << ", max_gap=" << max_gap << endl;
         
+        cout << "[own]" << endl;
         size_t matches = match_dfs(index, s1, s2, min_gap, max_gap, callback_cout);
-        size_t matches_ref = match_ref(text, s1, s2, min_gap, max_gap, callback_nop);
+        cout << "[reference]" << endl;
+        size_t matches_ref = match_ref(text, s1, s2, min_gap, max_gap, callback_cout);
             
         bool success = matches == matches_ref;
         if (!success)

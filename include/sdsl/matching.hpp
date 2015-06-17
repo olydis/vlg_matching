@@ -161,12 +161,12 @@ public:
         dfs_stack.emplace(initial_range, root_node);
     }
     
-    bool has_more()
+    bool has_more() const
     {
         return !dfs_stack.empty();
     }
     
-    node_type current_node()
+    node_type current_node() const
     {
         return dfs_stack.top().second;
     }
@@ -189,19 +189,6 @@ public:
         if (!sdsl::empty(exp_range[0]))
             dfs_stack.emplace(exp_range[0], node->children.first);
     }
-    
-    // performs one DFS step, retrieving a leaf or nullptr
-    node_type retrieve_leaf_and_traverse()
-    {
-        node_type node = current_node();
-        if (node->is_leaf)
-        {
-            next();
-            return node;
-        }
-        split();
-        return nullptr;
-    }
 };
 
 template<class type_index>
@@ -216,54 +203,17 @@ private:
     // (lex_range, node)
     vector<wavelet_tree_range_walker<type_index>> lex_ranges;
 
-    wt_type wts;
     size_t a;
-    size_t a_doc;
-    size_t b_idx = -1;
-    deque<size_t> b_values;
+    size_t b;
 
     incremental_wildcard_pattern p1;
 
     result_type current;
     
-    void adjust_b_range()
-    {
-        // shrink
-        while (!b_values.empty() && a + p1.min_gap > b_values.front())
-            b_values.pop_front();
-        // expand
-        while (lex_ranges[1].has_more() 
-            && a + p1.max_gap >= lex_ranges[1].current_node()->range_begin
-            && a_doc == lex_ranges[1].current_node()->range_begin_doc)
-        {
-            auto leaf = lex_ranges[1].retrieve_leaf_and_traverse();
-            if (leaf != nullptr)
-                b_values.push_back(leaf->range_begin);
-        }
-    }
-
     bool next_batch()
     {
-        b_idx = 0;
-        
-        // find next connected match
-        while (lex_ranges[0].has_more() 
-            && !b_values.empty()
-            && lex_ranges[0].current_node()->range_begin + p1.min_gap <= b_values.back())
-        {
-            auto leaf = lex_ranges[0].retrieve_leaf_and_traverse();
-            if (leaf != nullptr)
-            {
-                a = leaf->range_begin;
-                a_doc = leaf->range_begin_doc;
-                adjust_b_range();
-                if (!b_values.empty())
-                    return true;
-            }
-        }
-            
         // find next independent match
-        while (lex_ranges[0].has_more() && lex_ranges[1].has_more())
+        while (valid())
         {
             const auto& top0 = lex_ranges[0].current_node();
             const auto& top1 = lex_ranges[1].current_node();
@@ -276,28 +226,31 @@ private:
             else if (top0->is_leaf && top1->is_leaf)
             {
                 a = top0->range_begin;
-                a_doc = top0->range_begin_doc;
-                b_values.push_back(top1->range_begin);
-                lex_ranges[0].next();
+                b = top1->range_begin;
+                
+                // pull forward
                 lex_ranges[1].next();
-                adjust_b_range();
+                while (lex_ranges[0].current_node()->range_begin < 
+                       lex_ranges[1].current_node()->range_end)
+                    lex_ranges[0].next();
+
                 return true;
             }
             else
                 lex_ranges[top1->range_size() > top0->range_size() ? 1 : 0].split();
         }
-
-        b_values.clear();
         return false;
     }
 
     void next()
     {
-        ++b_idx;
-        if (!valid() && !next_batch())
+        if (!next_batch())
+        {
+            current = make_pair(0, 0);
             return; // end
-
-        current = make_pair(a, b_values[b_idx]);
+        }
+        
+        current = make_pair(a, b);
     }
 
 public:
@@ -307,9 +260,9 @@ public:
     wild_card_match_iterator(const type_index& index, 
         string s, 
         incremental_wildcard_pattern p1) 
-        : wts(index.wt), p1(p1)
+        : p1(p1)
     {
-        auto root_node = make_shared<node_cache<type_index>>(this->wts.root(), index, nullptr, nullptr);
+        auto root_node = make_shared<node_cache<type_index>>(index.wt.root(), index, nullptr, nullptr);
         size_type sp = 1, ep = 0;
         
         backward_search(index.csa, 0, index.csa.size()-1, s.begin(), s.end(), sp, ep);
@@ -329,7 +282,7 @@ public:
 
     bool valid() const
     {
-        return b_idx < b_values.size();
+        return lex_ranges[0].has_more() && lex_ranges[1].has_more();
     }
 
     result_type operator*() const
@@ -351,14 +304,6 @@ public:
         const wild_card_match_iterator& a,
         const wild_card_match_iterator& b)
     {
-        if (!a.valid() && !b.valid())
-            return true;
-        if (!a.valid() || !b.valid())
-            return false;
-        if (a.a != b.a)
-            return false;
-        if (a.b_idx != b.b_idx)
-            return false;
         return a.current == b.current;
     }
     
