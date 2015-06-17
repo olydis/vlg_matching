@@ -216,7 +216,6 @@ private:
     // (lex_range, node)
     vector<wavelet_tree_range_walker<type_index>> lex_ranges;
 
-    wt_type wts;
     size_t a;
     size_t a_doc;
     size_t b_idx = -1;
@@ -307,9 +306,9 @@ public:
     wild_card_match_iterator(const type_index& index, 
         string s, 
         incremental_wildcard_pattern p1) 
-        : wts(index.wt), p1(p1)
+        : p1(p1)
     {
-        auto root_node = make_shared<node_cache<type_index>>(this->wts.root(), index, nullptr, nullptr);
+        auto root_node = make_shared<node_cache<type_index>>(index.wt.root(), index, nullptr, nullptr);
         size_type sp = 1, ep = 0;
         
         backward_search(index.csa, 0, index.csa.size()-1, s.begin(), s.end(), sp, ep);
