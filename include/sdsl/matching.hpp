@@ -150,16 +150,34 @@ template<class type_index>
 class wavelet_tree_range_walker
 {
 private:
+    typedef shared_ptr<node_cache<type_index>> node_type;
     const type_index& index;
-    stack<pair<range_type,shared_ptr<node_cache<type_index>>>> dfs_stack;
+    stack<pair<range_type,node_type>> dfs_stack;
         
 public:
-    wavelet_tree_range_walker(const type_index& index, range_type initial_range, shared_ptr<node_cache<type_index>> root_node)
+    wavelet_tree_range_walker(const type_index& index, range_type initial_range, node_type root_node)
         : index(index)
     {
         dfs_stack.emplace(initial_range, root_node);
     }
     
+    bool has_more()
+    {
+        return !dfs_stack.empty();
+    }
+    
+    node_type current_node()
+    {
+        return dfs_stack.top().second;
+    }
+    
+    // moves to the next (adjacent) node in the iterator
+    void next()
+    {
+        dfs_stack.pop();
+    }
+
+    // splits the current node into two adjacent nodes with the same value range
     void split()
     {
         auto top = dfs_stack.top(); dfs_stack.pop();
@@ -170,20 +188,19 @@ public:
             dfs_stack.emplace(exp_range[1], node->children.second);
         if (!sdsl::empty(exp_range[0]))
             dfs_stack.emplace(exp_range[0], node->children.first);
-    };
-    
-    bool empty()
-    {
-        return dfs_stack.empty();
     }
     
-    shared_ptr<node_cache<type_index>> current_node()
+    // performs one DFS step, retrieving a leaf or nullptr
+    node_type retrieve_leaf_and_traverse()
     {
-        return dfs_stack.top().second;
-    }
-    void next()
-    {
-        dfs_stack.pop();
+        node_type node = current_node();
+        if (node->is_leaf)
+        {
+            next();
+            return node;
+        }
+        split();
+        return nullptr;
     }
 };
 
@@ -215,17 +232,13 @@ private:
         while (!b_values.empty() && a + p1.min_gap > b_values.front())
             b_values.pop_front();
         // expand
-        while (!lex_ranges[1].empty() 
+        while (lex_ranges[1].has_more() 
             && a + p1.max_gap >= lex_ranges[1].current_node()->range_begin
             && a_doc == lex_ranges[1].current_node()->range_begin_doc)
         {
-            if (lex_ranges[1].current_node()->is_leaf)
-            {                    
-                b_values.push_back(lex_ranges[1].current_node()->range_begin);
-                lex_ranges[1].next();
-            }
-            else
-                lex_ranges[1].split();
+            auto leaf = lex_ranges[1].retrieve_leaf_and_traverse();
+            if (leaf != nullptr)
+                b_values.push_back(leaf->range_begin);
         }
     }
 
@@ -234,25 +247,23 @@ private:
         b_idx = 0;
         
         // find next connected match
-        while (!lex_ranges[0].empty() 
+        while (lex_ranges[0].has_more() 
             && !b_values.empty()
             && lex_ranges[0].current_node()->range_begin + p1.min_gap <= b_values.back())
         {
-            if (lex_ranges[0].current_node()->is_leaf)
+            auto leaf = lex_ranges[0].retrieve_leaf_and_traverse();
+            if (leaf != nullptr)
             {
-                a = lex_ranges[0].current_node()->range_begin;
-                a_doc = lex_ranges[0].current_node()->range_begin_doc;
-                lex_ranges[0].next();
+                a = leaf->range_begin;
+                a_doc = leaf->range_begin_doc;
                 adjust_b_range();
                 if (!b_values.empty())
                     return true;
             }
-            else
-                lex_ranges[0].split();
         }
             
         // find next independent match
-        while (!lex_ranges[0].empty() && !lex_ranges[1].empty())
+        while (lex_ranges[0].has_more() && lex_ranges[1].has_more())
         {
             const auto& top0 = lex_ranges[0].current_node();
             const auto& top1 = lex_ranges[1].current_node();
@@ -401,7 +412,7 @@ public:
     
     size_type get_document_index(size_type symbol_index) const
     {
-        symbol_index = std::min(symbol_index, m_dbs.size() - 1);
+        symbol_index = std::min(symbol_index, m_dbs.size());
         return m_dbs_rank.rank(symbol_index);
     }
     

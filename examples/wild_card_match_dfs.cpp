@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
     bit_vector dbs(wts.size(), 0);
     for (size_t i = 0; i < dbs.size(); i++)
         dbs[i] = csa.text[i] == '\n';
-        
+
 
     matching_index<> index(csa, wts, dbs);
 
