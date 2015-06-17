@@ -9,12 +9,12 @@ using namespace std;
 
 using namespace std::chrono;
 using timer = std::chrono::high_resolution_clock;
- 
+
 
 size_t match_ref(string text, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(size_t a, size_t b)> callback)
 {
     basic_regex<char> regex("(" + s1 + ".*)(" + s2 + ")");
-    cmatch match;
+    cmatch match; 
     
     size_t result = 0;
     while (regex_search(text.c_str(), match, regex))
@@ -25,7 +25,7 @@ size_t match_ref(string text, string s1, string s2, size_t min_gap, size_t max_g
     }
     return result;
 }
- 
+
 template <typename type_matching_index>
 size_t match_dfs(type_matching_index& index, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(typename type_matching_index::size_type a, typename type_matching_index::size_type b)> callback)
 {
@@ -201,18 +201,6 @@ int main(int argc, char* argv[])
         cout << "PROMPT: " << endl;
         while (cin >> s1 >> s2 >> min1_gap >> max1_gap && max1_gap >= min1_gap)
             compare(s1, s2, min1_gap, max1_gap);
-            //cout << match_dfs(index, s1, s2, min1_gap, max1_gap, callback_cout) << " matches found" << endl;
-        //while (cin >> s1 >> min1_gap >> max1_gap >> s2 >> min2_gap >> max2_gap >> s3)
-        //    cout << match3_dfs(index, 
-        //        s1,
-        //        incremental_wildcard_pattern(s2, min1_gap + s1.size(), max1_gap + s1.size()),
-        //        incremental_wildcard_pattern(s3, min2_gap + s2.size(), max2_gap + s2.size())
-        //        ) << " matches found" << endl;
-        //while (cin >> s1 >> s2 >> min1_gap >> max1_gap >> s3)
-        //    cout << match_dfs_ex(index, 
-        //        s1,
-        //        incremental_wildcard_pattern(s2, min1_gap + s1.size(), max1_gap + s1.size(), s3)
-        //        ) << " matches found" << endl;
     }
     err:;
 }
