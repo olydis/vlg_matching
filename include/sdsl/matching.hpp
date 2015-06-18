@@ -68,15 +68,16 @@ struct incremental_wildcard_pattern
     }
 };
 
+// TODO: think about more general way
 template<class t_iter>
-class matching_result
+class matching_container
 {
 private:
     t_iter m_begin;
     t_iter m_end;
 
 public:
-    matching_result(t_iter begin, t_iter end) : m_begin(begin), m_end(end)
+    matching_container(t_iter begin, t_iter end) : m_begin(begin), m_end(end)
     {
     }
 
@@ -99,7 +100,7 @@ struct node_cache
     
     const type_index& index;
     node_type node;
-    pair<shared_ptr<node_cache>, shared_ptr<node_cache>> children;
+    pair<shared_ptr<node_cache>, shared_ptr<node_cache>> children { nullptr, nullptr };
     size_type range_begin;
     size_type range_end;
     size_type range_begin_doc;
@@ -119,7 +120,6 @@ struct node_cache
         : index(index)
     {
         this->node = node;
-        this->children = make_pair(nullptr, nullptr);
         auto range = index.wt.value_range(node);
         this->range_begin = get<0>(range);
         this->range_end = get<1>(range);
@@ -189,6 +189,19 @@ public:
         if (!sdsl::empty(exp_range[0]))
             dfs_stack.emplace(exp_range[0], node->children.first);
     }
+
+    // performs one DFS step, retrieving a leaf or nullptr
+    node_type retrieve_leaf_and_traverse()
+    {
+        node_type node = current_node();
+        if (node->is_leaf)
+        {
+            next();
+            return node;
+        }
+        split();
+        return nullptr;
+    }
 };
 
 template<class type_index>
@@ -203,8 +216,8 @@ private:
     // (lex_range, node)
     vector<wavelet_tree_range_walker<type_index>> lex_ranges;
 
-    size_t a;
-    size_t b;
+    size_t a = 0;
+    size_t b = 0;
 
     incremental_wildcard_pattern p1;
 
@@ -226,12 +239,29 @@ private:
             else if (top0->is_leaf && top1->is_leaf)
             {
                 a = top0->range_begin;
+
+                if (b != 0 && a <= b)
+                {
+                    lex_ranges[0].next();
+                    continue;
+                }
+
                 b = top1->range_begin;
-                
-                // pull forward
+
+                // push b forward
                 lex_ranges[1].next();
-                while (lex_ranges[0].current_node()->range_begin < 
-                       lex_ranges[1].current_node()->range_end)
+                while (valid()
+                    && a + p1.max_gap >= lex_ranges[1].current_node()->range_begin
+                    && top0->range_end_doc == lex_ranges[1].current_node()->range_begin_doc)
+                {
+                    auto leaf = lex_ranges[1].retrieve_leaf_and_traverse();
+                    if (leaf != nullptr)
+                        b = leaf->range_begin;
+                }
+                
+                // pull a forward
+                while (valid() &&
+                       lex_ranges[0].current_node()->range_end <= b)
                     lex_ranges[0].next();
 
                 return true;
@@ -315,6 +345,14 @@ public:
     }
 };
 
+
+// TODO: construction mem-size graph (enrich data structure with phases)
+
+// TODO:
+// - sdsl-ish construct
+// - sdsl-ish serialize
+// - sdsl-ish load
+// - sdsl-ish ...
 template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>, 
          class t_wt=wt_int<bit_vector, rank_support_v5<>, select_support_scan<1>, select_support_scan<0>>,
          class t_bv=rrr_vector<>>
@@ -361,12 +399,12 @@ public:
         return m_dbs_rank.rank(symbol_index);
     }
     
-    matching_result<iterator> match2(
+    matching_container<iterator> match2(
         const string s,
         const incremental_wildcard_pattern p1
         ) const
     {
-        return matching_result<iterator>(
+        return matching_container<iterator>(
             wild_card_match_iterator<index_type>(*this, s, p1),
             wild_card_match_iterator<index_type>());
     }

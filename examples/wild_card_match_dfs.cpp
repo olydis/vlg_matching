@@ -10,22 +10,28 @@ using namespace std;
 using namespace std::chrono;
 using timer = std::chrono::high_resolution_clock;
 
-
-size_t match_ref(string text, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(size_t a, size_t b)> callback)
+// TODO: escape
+// TODO: time regex construction (execute after timing on small string)
+size_t ctor_total;
+size_t match_ref(string& text, string s1, string s2, size_t min_gap, size_t max_gap, std::function<void(size_t a, size_t b)> callback)
 {
     const char* c_text = text.c_str();
+
+    auto start = timer::now();
     std::ostringstream regex_stream;
     regex_stream << "(" << s1 << ".{" << min_gap << "," << max_gap << "})(" << s2 << ")";
-
     basic_regex<char> regex(regex_stream.str());
+    auto stop = timer::now();
     cmatch match;
     
+    ctor_total += duration_cast<milliseconds>(stop-start).count();
+
     size_t result = 0;
     size_t offset = 0;
     while (regex_search(c_text + offset, match, regex))
     {
         ++result;
-        callback(offset + match.position(), offset + match.position() + match[0].length() - 1);
+        callback(offset + match.position(), offset + match.position() + match[0].length() - s2.size());
         offset += match.position() + match.length();
     }
     return result;
@@ -66,21 +72,19 @@ int main(int argc, char* argv[])
         cout << "    Input pat1 pat2 min_gap max_gap" << endl;
         return 1;
     }
-    csa_wt<wt_huff<rrr_vector<63>>> csa;
 
-    cache_config cc(false,".","WILD_CARD_MATCH_TMP");
-    construct(csa, argv[1], cc, 1);
-    
+    cout << "loading as string" << endl;
     ifstream tmp(argv[1]);
     string text((istreambuf_iterator<char>(tmp)),
                  istreambuf_iterator<char>());
 
+    cout << "loading as matching_index" << endl;
+    csa_wt<wt_huff<rrr_vector<63>>> csa;
+    cache_config cc(false,".","WILD_CARD_MATCH_TMP");
+    construct(csa, argv[1], cc, 1);
     wt_int<bit_vector, rank_support_v5<>, select_support_scan<1>, select_support_scan<0>> wts;
-    
     construct(wts, cache_file_name(conf::KEY_SA, cc));
-
     util::delete_all_files(cc.file_map);
-
 
     // doc boundaries
     bit_vector dbs(wts.size(), 0);
@@ -95,6 +99,8 @@ int main(int argc, char* argv[])
         cout<<"wts="<<wts<<endl;
     }
     
+    bool VERBOSE = false;
+
     // CALLBACKS
     using size_type = decltype(csa)::size_type;
     std::function<void(size_type a, size_type b)> callback_cout = [&](size_type a, size_type b) 
@@ -110,14 +116,19 @@ int main(int argc, char* argv[])
     };
     std::function<void(size_type a, size_type b)> callback_nop = [](size_type a, size_type b) { (void)a; (void)b; };
 
+    auto callback_auto = VERBOSE ? callback_cout : callback_nop;
+
     auto compare = [&](string s1, string s2, size_t min_gap, size_t max_gap) 
     { 
-        cout << "Comparing with: s1=" << s1 << ", s2=" << s2 << ", min_gap=" << min_gap << ", max_gap=" << max_gap << endl;
-        
-        cout << "[own]" << endl;
-        size_t matches = match_dfs(index, s1, s2, min_gap, max_gap, callback_cout);
-        cout << "[reference]" << endl;
-        size_t matches_ref = match_ref(text, s1, s2, min_gap, max_gap, callback_cout);
+        if (VERBOSE)
+            cout << "Comparing with: s1=" << s1 << ", s2=" << s2 << ", min_gap=" << min_gap << ", max_gap=" << max_gap << endl;
+
+        if (VERBOSE)
+            cout << "[own]" << endl;
+        size_t matches = match_dfs(index, s1, s2, min_gap, max_gap, callback_auto);
+        if (VERBOSE)
+            cout << "[reference]" << endl;
+        size_t matches_ref = match_ref(text, s1, s2, min_gap, max_gap, callback_auto);
             
         bool success = matches == matches_ref;
         if (!success)
@@ -126,77 +137,92 @@ int main(int argc, char* argv[])
             cout << "MATCHES:     " << matches << endl;
             cout << "MATCHES_ref: " << matches_ref << endl;
         }
-        else
+        else if (VERBOSE)
             cout << matches << " found" << endl;
         
         return success;
     };
-    
-    bool test_and_bench = true;
-    if (test_and_bench)
+
+    bool test = false;
+    bool bench = true;
+    vector<pair<string, string>> tcs;
+    tcs.emplace_back("8", "8");
+    tcs.emplace_back("8", "0");
+    tcs.emplace_back("a", "1");
+    tcs.emplace_back("include", "std");
+    tcs.emplace_back("if", "s");
+    tcs.emplace_back("wh", "le");
+    tcs.emplace_back("cout", "endl");
+    if (test)
     {
         // TESTS
-        vector<pair<string, string>> tcs;
-        tcs.emplace_back("8", "8");
-        tcs.emplace_back("8", "0");
-        tcs.emplace_back("a", "1");
-        tcs.emplace_back(" ", "8");
         int max = 100;
         for (unsigned int tci = 0; tci < tcs.size(); tci++)
         {
             auto s1 = tcs[tci].first;
             auto s2 = tcs[tci].second;
             cout << "TEST CASE: " << s1 << " " << s2 << endl;
-            for (int i = 0; i <= max; i += 3)
-            { 
-                if (!compare(s1, s2, i, max)) goto err;
+            for (int i = 0; i <= max; i += 17)
+            {
+                if (!compare(s1, s2, i, 10000)) goto err;
                 if (!compare(s1, s2, 0, i)) goto err;
                 if (!compare(s1, s2, i, i)) goto err;
                 if (!compare(s1, s2, i, 2*i)) goto err;
-                if (!compare(s1, s2, 10 * i, 10 * i + 3)) goto err;
                 if (!compare(s1, s2, 10 * i, 10 * i + 10)) goto err;
             }
         }
-         
+    }
+
+    if (bench)
+    {
         // BENCH
+        cout << "===BENCH===" << endl;
         {
-            size_t found = 0;
-            auto start = timer::now();
-            for (unsigned int tci = 0; tci < tcs.size(); tci++)
+            size_t num_queries = 0;
+
+            for (int gap_size = 0; gap_size <= 10 * 1000; gap_size += 1000)
             {
-                auto s1 = tcs[tci].first;
-                auto s2 = tcs[tci].second;
-                for (int i = 0; i <= max; i += 3)
-                { 
-                    found += match_dfs(index, s1, s2, i, max, callback_nop);
-                    found += match_dfs(index, s1, s2, 0, i, callback_nop);
-                    found += match_dfs(index, s1, s2, i, i, callback_nop);
-                    found += match_dfs(index, s1, s2, i, 2*i, callback_nop);
-                    found += match_dfs(index, s1, s2, 10 * i, 10 * i + 3, callback_nop);
-                    found += match_dfs(index, s1, s2, 10 * i, 10 * i + 10, callback_nop);
-                }
+                num_queries += tcs.size();
+                auto start = timer::now();
+                auto stop = timer::now();
+                size_t found;
+
+                // 0..gap_size
+                found = 0;
+                start = timer::now();
+                for (unsigned int tci = 0; tci < tcs.size(); tci++)
+                    found += match_dfs(index, tcs[tci].first, tcs[tci].second, 0, gap_size, callback_nop);
+                stop = timer::now();
+                cout << "OUR   (0.." << gap_size << "): " << duration_cast<milliseconds>(stop-start).count() << "ms for " << found << " occurrences" << endl;
+
+                ctor_total = 0;
+                found = 0;
+                start = timer::now();
+                for (unsigned int tci = 0; tci < tcs.size(); tci++)
+                    found += match_ref(text, tcs[tci].first, tcs[tci].second, 0, gap_size, callback_nop);
+                stop = timer::now();
+                cout << "REGEX (0.." << gap_size << "): " << duration_cast<milliseconds>(stop-start).count() - ctor_total << "ms ( + regex-construct: " << ctor_total << "ms) for " << found << " occurrences" << endl;
+
+
+                // gap_size..gap_size+10
+                found = 0;
+                start = timer::now();
+                for (unsigned int tci = 0; tci < tcs.size(); tci++)
+                    found += match_dfs(index, tcs[tci].first, tcs[tci].second, gap_size, gap_size + 10, callback_nop);
+                stop = timer::now();
+                cout << "OUR   (" << gap_size << ".." << (gap_size + 10) << "): " << duration_cast<milliseconds>(stop-start).count() << "ms for " << found << " occurrences" << endl;
+
+                ctor_total = 0;
+                found = 0;
+                start = timer::now();
+                for (unsigned int tci = 0; tci < tcs.size(); tci++)
+                    found += match_ref(text, tcs[tci].first, tcs[tci].second, gap_size, gap_size + 10, callback_nop);
+                stop = timer::now();
+                cout << "REGEX (" << gap_size << ".." << (gap_size + 10) << "): " << duration_cast<milliseconds>(stop-start).count() - ctor_total << "ms ( + regex-construct: " << ctor_total << "ms) for " << found << " occurrences" << endl;
             }
-            auto stop = timer::now();
-            cout << "BENCH_DFS: " << duration_cast<milliseconds>(stop-start).count() << "ms for " << found << " occurrences" << endl;
-        
-            found = 0;
-            start = timer::now();
-            for (unsigned int tci = 0; tci < tcs.size(); tci++)
-            {
-                auto s1 = tcs[tci].first;
-                auto s2 = tcs[tci].second;
-                for (int i = 0; i <= max; i += 3)
-                { 
-                    found += match_ref(text, s1, s2, i, max, callback_nop);
-                    found += match_ref(text, s1, s2, 0, i, callback_nop);
-                    found += match_ref(text, s1, s2, i, i, callback_nop);
-                    found += match_ref(text, s1, s2, i, 2*i, callback_nop);
-                    found += match_ref(text, s1, s2, 10 * i, 10 * i + 3, callback_nop);
-                    found += match_ref(text, s1, s2, 10 * i, 10 * i + 10, callback_nop);
-                }
-            }
-            stop = timer::now();
-            cout << "BENCH_REF: " << duration_cast<milliseconds>(stop-start).count() << "ms for " << found << " occurrences" << endl;
+
+
+            cout << "#queries = " << num_queries << endl;
         }
     }
 
