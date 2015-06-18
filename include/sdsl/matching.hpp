@@ -358,6 +358,9 @@ template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>,
          class t_bv=rrr_vector<>>
 class matching_index
 {
+
+
+
     static_assert(std::is_same<typename index_tag<t_csa>::type, csa_tag>::value,
         "First template argument has to be a suffix array.");
     static_assert(std::is_same<typename index_tag<t_wt>::type, wt_tag>::value,
@@ -379,16 +382,19 @@ public:
 
 
 private:
-    const csa_type  m_csa;
-    const wt_type   m_wt;
-    const bv_type   m_dbs; // 1 marks the END of a document
-    const rank_type m_dbs_rank;
+    csa_type  m_csa;
+    wt_type   m_wt;
+    bv_type   m_dbs; // 1 marks the END of a document
+    rank_type m_dbs_rank;
 
 public:
     const csa_type& csa = m_csa;
     const wt_type&  wt  = m_wt;
     
-    matching_index(const csa_type csa, const wt_type wt, const bv_type dbs)
+    
+    matching_index() = default;
+    
+    matching_index(csa_type csa, wt_type wt, bv_type dbs)
         : m_csa(csa), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
     {
     }
@@ -408,7 +414,42 @@ public:
             wild_card_match_iterator<index_type>(*this, s, p1),
             wild_card_match_iterator<index_type>());
     }
+    
+
+    //! Assignment move operator
+    matching_index& operator=(matching_index&& idx)
+    {
+        if (this != &idx) {
+            m_csa      = std::move(idx.m_csa);
+            m_wt       = std::move(idx.m_wt);
+            m_dbs      = std::move(idx.m_dbs);
+            m_dbs_rank = std::move(idx.m_dbs_rank);
+            m_dbs_rank.set_vector(&m_dbs);
+        }
+        return *this;
+    }
+    
 };
+
+// Specialization for CSAs
+template<class t_csa, class t_wt, class t_bv>
+void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, cache_config& config, uint8_t num_bytes)
+{
+    t_csa csa;
+    construct(csa, file, config, num_bytes);
+    t_wt wts;
+    construct(wts, cache_file_name(conf::KEY_SA, config));
+    // TODO: consider int alphabet
+    int_vector_buffer<8> text_buffer(cache_file_name(conf::KEY_TEXT, config));
+    
+    bit_vector dbs(text_buffer.size(), 0);
+    for (size_t i = 0; i < text_buffer.size(); i++)
+        dbs[i] = text_buffer[i] == '\n';
+        
+    util::delete_all_files(config.file_map);
+    
+    idx = std::move(matching_index<t_csa, t_wt, t_bv>(csa, wts, dbs));
+}
 
 }// end namespace sdsl
 #endif
