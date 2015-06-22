@@ -242,7 +242,7 @@ int main(int argc, char* argv[])
                 for (unsigned int tci = 0; tci < tcs.size(); tci++)
                     found += match(text, index, tcs[tci].first, tcs[tci].second, min_gap, max_gap, callback_nop);
                 auto stop = timer::now();
-                cout << min_gap << ".." << max_gap << " ; \x1b[1m" << version << "\x1b[0m: \x1b[1;33m" << found << "\x1b[0m occurrences found in " <<  duration_cast<milliseconds>(stop-start).count() - ctor_total << "ms ( + construct: " << ctor_total << "ms)" << endl;
+                cout << min_gap << ".." << max_gap << " ; \x1b[1m" << version << "\x1b[0m: \x1b[1;33m" << found << "\x1b[0m occurrences found in \x1b[1;36m" <<  duration_cast<milliseconds>(stop-start).count() << "\x1b[0m ms (construct: " << ctor_total << " ms)" << endl;
                 total_time += duration_cast<milliseconds>(stop-start).count();
                 return found;
             };
@@ -258,21 +258,24 @@ int main(int argc, char* argv[])
 
                 if (f1 != f2 
                 ||  f2 != f3
-                ) cout << " \x1b[31m PANIC: #occ mismatch! \x1b[1m" << endl;
+                ) cout << " \x1b[31m PANIC: #occ mismatch! \x1b[0m" << endl;
             };
-
+            
+            
             for (int gap_size = 0; gap_size <= 10 * 1000; gap_size += 1000)
-            {
                 num_queries += tcs.size();
 
+            for (int gap_size = 0; gap_size <= 10 * 1000; gap_size += 1000)
                 exec_bench_comparison(0, gap_size);
+                
+            for (int gap_size = 0; gap_size <= 10 * 1000; gap_size += 1000)
                 exec_bench_comparison(gap_size, gap_size + 10);
-            }
 
 
             cout << "#queries = " << num_queries << endl;
-            cout << "total ms OUR   = " << total_time_our << endl;
-            cout << "total ms REGEX = " << total_time_regex << endl;
+            cout << "total ms OUR = " << total_time_our << endl;
+            cout << "total ms RXB = " << total_time_regex_boost << endl;
+            cout << "total ms RX  = " << total_time_regex << endl;
         }
     }
 
