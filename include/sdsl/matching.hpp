@@ -223,7 +223,7 @@ private:
 
     result_type current;
     
-    bool next_batch()
+    bool next()
     {
         // find next independent match
         while (valid())
@@ -264,23 +264,16 @@ private:
                        lex_ranges[0].current_node()->range_end <= b)
                     lex_ranges[0].next();
 
+
+                current = make_pair(a, b);
                 return true;
             }
             else
-                lex_ranges[top1->range_size() > top0->range_size() ? 1 : 0].split();
-        }
-        return false;
-    }
-
-    void next()
-    {
-        if (!next_batch())
-        {
-            current = make_pair(0, 0);
-            return; // end
+                lex_ranges[top1->range_size() >= top0->range_size() ? 1 : 0].split();
         }
         
-        current = make_pair(a, b);
+        current = make_pair(0, 0);
+        return false;
     }
 
 public:
