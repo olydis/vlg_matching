@@ -1,3 +1,6 @@
 [submodule "external/googletest"]
 	path = external/googletest
 	url = https://git.chromium.org/git/external/googletest.git
+[submodule "benchmark/gapped-matching/external/easyloggingpp"]
+	path = benchmark/gapped-matching/external/easyloggingpp
+	url = https://github.com/easylogging/easyloggingpp.git
