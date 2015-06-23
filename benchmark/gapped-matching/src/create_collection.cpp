@@ -1,6 +1,7 @@
 #include <sdsl/int_vector.hpp>
 #include <sdsl/int_vector_mapper.hpp>
 #include <iostream>
+#include <iomanip>
 
 #include "utils.hpp"
 #include "constants.hpp"
@@ -50,10 +51,11 @@ int main(int argc, const char* argv[])
     cmdargs_t args = parse_args(argc, argv);
 
     /* (0) check if input file exists */
-    std::ifstream ifs(args.input_file);
+    std::ifstream ifs(args.input_file,std::ios::binary);
     if (!ifs) {
         LOG(FATAL) << "Error opening input file '" << args.input_file << "'";
     }
+    ifs >> std::noskipws; // dont skip white spaces!
 
     /* (1) create collection dir */
     LOG(INFO) << "Creating collection directory structure in '" << args.collection_dir << "'";

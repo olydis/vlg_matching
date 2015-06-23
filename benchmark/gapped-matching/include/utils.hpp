@@ -40,6 +40,7 @@ namespace utils
 std::vector<gapped_pattern>
 parse_pattern_file(std::string file_name)
 {
+    gm_timer tm("READ PATTERNS",true);
     std::vector<gapped_pattern> patterns;
     std::ifstream in(file_name);
     if (in) {
@@ -50,6 +51,7 @@ parse_pattern_file(std::string file_name)
     } else {
         LOG(FATAL) << "Cannot open pattern file '" << file_name << "'";
     }
+    LOG(INFO) << "read " << patterns.size() << " patterns";
     return patterns;
 }
 

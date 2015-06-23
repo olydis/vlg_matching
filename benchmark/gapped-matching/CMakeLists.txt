@@ -5,7 +5,7 @@ include(AppendCompilerFlags)
 include(ExternalProject)
 
 project(gapped-matching CXX C)
-set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Debug")
 
 # parse make helper (HACK  :( )
 file(STRINGS ${CMAKE_HOME_DIRECTORY}/../../Make.helper makehelper_contents)

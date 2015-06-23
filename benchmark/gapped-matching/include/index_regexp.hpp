@@ -11,18 +11,19 @@ class index_regexp
     public:
         typedef sdsl::int_vector<0>::size_type size_type;
         typedef sdsl::int_vector<0>::value_type value_type;
-        typedef sdsl::int_vector<0> text_type;
+        typedef std::string text_type;
         std::string name() const
         {
             std::string index_name = IDXNAME;
-            return "REGEXP-"+index_name+ "-";
+            return "REGEXP-"+index_name;
         }
     protected:
-        sdsl::int_vector<0> m_text;
+        text_type m_text;
     public:
         index_regexp(collection& col)
         {
-            sdsl::load_from_file(m_text,col.file_map[consts::KEY_TEXT]);
+            sdsl::int_vector_mapper<0> sdsl_text(col.file_map[consts::KEY_TEXT]);
+            std::copy(sdsl_text.begin(),sdsl_text.end(),std::back_inserter(m_text));
         }
 
         size_type serialize(std::ostream&, sdsl::structure_tree_node* v=NULL, std::string name="")const
@@ -48,16 +49,17 @@ class index_regexp
         search(const gapped_pattern& pat) const
         {
             /* (1) construct regexp */
-            std::basic_regex<value_type> rx(pat.sdsl_regexp.begin(),pat.sdsl_regexp.end(),REGEXP_TYPE);
+            std::regex rx(pat.raw_regexp.begin(),pat.raw_regexp.end(),REGEXP_TYPE);
 
             /* (2) find all matching pos */
-            std::match_results<text_type::const_iterator> pattern_match;
-            std::regex_search(m_text.begin(),m_text.end(),pattern_match,rx);
+            auto matches_begin = std::sregex_iterator(m_text.begin(),m_text.end(),rx);
+            auto matches_end = std::sregex_iterator();
+
 
             /* (3) copy the output */
-            gapped_search_result res(pattern_match.size());
-            for (size_t i = 0; i < pattern_match.size(); ++i) {
-                res.positions[i] = *(pattern_match[i].first);
+            gapped_search_result res;
+            for (std::sregex_iterator it = matches_begin; it != matches_end; ++it) {
+                res.positions.push_back(it->position());
             }
             return res;
         }

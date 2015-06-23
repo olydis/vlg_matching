@@ -66,7 +66,8 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
         }
 
         auto time_ms = duration_cast<milliseconds>(dur);
-        LOG(INFO) << " PAT=" << npat << " NPOS=" << res.positions.size() << " TIME_MS=" << time_ms.count();
+        LOG(INFO) << " NPAT=" << npat++ << " NPOS=" << res.positions.size()
+                  << " TIME_MS=" << time_ms.count() << "  P='"<<pat.raw_regexp<<"'";
     }
 
     /* output stats */
