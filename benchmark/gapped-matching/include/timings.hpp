@@ -20,7 +20,7 @@ struct gm_timer {
     {
         auto stop = watch::now();
         auto time_spent = stop-start;
-        if (output) LOG(INFO) << "STOP(" << name << ") - " << duration_cast<milliseconds>(stop - start).count() / 1000.0f << " sec";
+        if (output) LOG(INFO) << "STOP(" << name << ") - " << duration_cast<milliseconds>(time_spent).count() / 1000.0f << " sec";
     }
     watch::duration
     elapsed() const
