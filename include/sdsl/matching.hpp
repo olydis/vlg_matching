@@ -23,10 +23,12 @@
 #define INCLUDED_SDSL_MATCHING
 
 #include "sdsl_concepts.hpp"
+#include "csa_wt.hpp"
 #include "int_vector.hpp"
-#include "sd_vector.hpp"// for standard initialisation of template parameters
+#include "sd_vector.hpp"
 #include "util.hpp"
 #include "wt_huff.hpp"
+#include "wt_int.hpp"
 #include <algorithm> // for std::swap
 #include <vector>
 #include <queue>
@@ -68,15 +70,16 @@ struct incremental_wildcard_pattern
     }
 };
 
+// TODO: think about more general way
 template<class t_iter>
-class matching_result
+class matching_container
 {
 private:
     t_iter m_begin;
     t_iter m_end;
 
 public:
-    matching_result(t_iter begin, t_iter end) : m_begin(begin), m_end(end)
+    matching_container(t_iter begin, t_iter end) : m_begin(begin), m_end(end)
     {
     }
 
@@ -99,7 +102,7 @@ struct node_cache
     
     const type_index& index;
     node_type node;
-    pair<shared_ptr<node_cache>, shared_ptr<node_cache>> children;
+    pair<shared_ptr<node_cache>, shared_ptr<node_cache>> children { nullptr, nullptr };
     size_type range_begin;
     size_type range_end;
     size_type range_begin_doc;
@@ -119,7 +122,6 @@ struct node_cache
         : index(index)
     {
         this->node = node;
-        this->children = make_pair(nullptr, nullptr);
         auto range = index.wt.value_range(node);
         this->range_begin = get<0>(range);
         this->range_end = get<1>(range);
@@ -161,12 +163,12 @@ public:
         dfs_stack.emplace(initial_range, root_node);
     }
     
-    bool has_more()
+    bool has_more() const
     {
         return !dfs_stack.empty();
     }
     
-    node_type current_node()
+    node_type current_node() const
     {
         return dfs_stack.top().second;
     }
@@ -189,7 +191,7 @@ public:
         if (!sdsl::empty(exp_range[0]))
             dfs_stack.emplace(exp_range[0], node->children.first);
     }
-    
+
     // performs one DFS step, retrieving a leaf or nullptr
     node_type retrieve_leaf_and_traverse()
     {
@@ -216,53 +218,17 @@ private:
     // (lex_range, node)
     vector<wavelet_tree_range_walker<type_index>> lex_ranges;
 
-    size_t a;
-    size_t a_doc;
-    size_t b_idx = -1;
-    deque<size_t> b_values;
+    size_t a = 0;
+    size_t b = 0;
 
     incremental_wildcard_pattern p1;
 
     result_type current;
     
-    void adjust_b_range()
+    bool next()
     {
-        // shrink
-        while (!b_values.empty() && a + p1.min_gap > b_values.front())
-            b_values.pop_front();
-        // expand
-        while (lex_ranges[1].has_more() 
-            && a + p1.max_gap >= lex_ranges[1].current_node()->range_begin
-            && a_doc == lex_ranges[1].current_node()->range_begin_doc)
-        {
-            auto leaf = lex_ranges[1].retrieve_leaf_and_traverse();
-            if (leaf != nullptr)
-                b_values.push_back(leaf->range_begin);
-        }
-    }
-
-    bool next_batch()
-    {
-        b_idx = 0;
-        
-        // find next connected match
-        while (lex_ranges[0].has_more() 
-            && !b_values.empty()
-            && lex_ranges[0].current_node()->range_begin + p1.min_gap <= b_values.back())
-        {
-            auto leaf = lex_ranges[0].retrieve_leaf_and_traverse();
-            if (leaf != nullptr)
-            {
-                a = leaf->range_begin;
-                a_doc = leaf->range_begin_doc;
-                adjust_b_range();
-                if (!b_values.empty())
-                    return true;
-            }
-        }
-            
         // find next independent match
-        while (lex_ranges[0].has_more() && lex_ranges[1].has_more())
+        while (valid())
         {
             const auto& top0 = lex_ranges[0].current_node();
             const auto& top1 = lex_ranges[1].current_node();
@@ -275,28 +241,41 @@ private:
             else if (top0->is_leaf && top1->is_leaf)
             {
                 a = top0->range_begin;
-                a_doc = top0->range_begin_doc;
-                b_values.push_back(top1->range_begin);
-                lex_ranges[0].next();
+
+                if (b != 0 && a <= b)
+                {
+                    lex_ranges[0].next();
+                    continue;
+                }
+
+                b = top1->range_begin;
+
+                // push b forward
                 lex_ranges[1].next();
-                adjust_b_range();
+                while (valid()
+                    && a + p1.max_gap >= lex_ranges[1].current_node()->range_begin
+                    && top0->range_end_doc == lex_ranges[1].current_node()->range_begin_doc)
+                {
+                    auto leaf = lex_ranges[1].retrieve_leaf_and_traverse();
+                    if (leaf != nullptr)
+                        b = leaf->range_begin;
+                }
+                
+                // pull a forward
+                while (valid() &&
+                       lex_ranges[0].current_node()->range_end <= b)
+                    lex_ranges[0].next();
+
+
+                current = make_pair(a, b);
                 return true;
             }
             else
-                lex_ranges[top1->range_size() > top0->range_size() ? 1 : 0].split();
+                lex_ranges[top1->range_size() >= top0->range_size() ? 1 : 0].split();
         }
-
-        b_values.clear();
+        
+        current = make_pair(0, 0);
         return false;
-    }
-
-    void next()
-    {
-        ++b_idx;
-        if (!valid() && !next_batch())
-            return; // end
-
-        current = make_pair(a, b_values[b_idx]);
     }
 
 public:
@@ -328,7 +307,7 @@ public:
 
     bool valid() const
     {
-        return b_idx < b_values.size();
+        return lex_ranges[0].has_more() && lex_ranges[1].has_more();
     }
 
     result_type operator*() const
@@ -350,14 +329,6 @@ public:
         const wild_card_match_iterator& a,
         const wild_card_match_iterator& b)
     {
-        if (!a.valid() && !b.valid())
-            return true;
-        if (!a.valid() || !b.valid())
-            return false;
-        if (a.a != b.a)
-            return false;
-        if (a.b_idx != b.b_idx)
-            return false;
         return a.current == b.current;
     }
     
@@ -369,6 +340,11 @@ public:
     }
 };
 
+
+// TODO: construction mem-size graph (enrich data structure with phases)
+
+// TODO:
+// - some sdsl-typical members
 template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>, 
          class t_wt=wt_int<bit_vector, rank_support_v5<>, select_support_scan<1>, select_support_scan<0>>,
          class t_bv=rrr_vector<>>
@@ -395,19 +371,27 @@ public:
 
 
 private:
-    const csa_type  m_csa;
-    const wt_type   m_wt;
-    const bv_type   m_dbs; // 1 marks the END of a document
-    const rank_type m_dbs_rank;
+    csa_type  m_csa;
+    wt_type   m_wt;
+    bv_type   m_dbs; // 1 marks the END of a document
+    rank_type m_dbs_rank;
 
 public:
     const csa_type& csa = m_csa;
     const wt_type&  wt  = m_wt;
     
-    matching_index(const csa_type csa, const wt_type wt, const bv_type dbs)
-        : m_csa(csa), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
-    {
+    
+    matching_index() = default;
+    
+    matching_index(const matching_index& idx)
+        : m_csa(idx.m_csa), m_wt(idx.m_wt), m_dbs(idx.m_dbs), m_dbs_rank(idx.m_dbs_rank)
+    { 
+        m_dbs_rank.set_vector(&m_dbs);
     }
+    
+    matching_index(csa_type csa, wt_type wt, bv_type dbs)
+        : m_csa(csa), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
+    { }
     
     size_type get_document_index(size_type symbol_index) const
     {
@@ -415,16 +399,83 @@ public:
         return m_dbs_rank.rank(symbol_index);
     }
     
-    matching_result<iterator> match2(
+    matching_container<iterator> match2(
         const string s,
         const incremental_wildcard_pattern p1
         ) const
     {
-        return matching_result<iterator>(
+        return matching_container<iterator>(
             wild_card_match_iterator<index_type>(*this, s, p1),
             wild_card_match_iterator<index_type>());
     }
+    
+
+    //! Assignment move operator
+    matching_index& operator=(matching_index&& idx)
+    {
+        if (this != &idx) {
+            m_csa      = std::move(idx.m_csa);
+            m_wt       = std::move(idx.m_wt);
+            m_dbs      = std::move(idx.m_dbs);
+            m_dbs_rank = std::move(idx.m_dbs_rank);
+            m_dbs_rank.set_vector(&m_dbs);
+        }
+        return *this;
+    }
+
+    //! Swap operation
+    void swap(matching_index& idx)
+    {
+        if (this != &idx) {
+            m_csa.swap(idx.m_csa);
+            m_wt.swap(idx.m_wt);
+            m_dbs.swap(idx.m_dbs);
+            util::swap_support(m_dbs_rank, idx.m_dbs_rank, &m_dbs, &(idx.m_dbs));
+        }
+    }
+
+    //! Serializes the data structure into the given ostream
+    size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const
+    {
+        structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
+        size_type written_bytes = 0;
+        written_bytes += m_csa.serialize(out, child, "csa");
+        written_bytes += m_wt.serialize(out, child, "wt");
+        written_bytes += m_dbs.serialize(out, child, "dbs");
+        written_bytes += m_dbs_rank.serialize(out, child, "dbs_rank");
+        structure_tree::add_size(child, written_bytes);
+        return written_bytes;
+    }
+
+    //! Loads the data structure from the given istream.
+    void load(std::istream& in)
+    {
+        m_csa.load(in);
+        m_wt.load(in);
+        m_dbs.load(in);
+        m_dbs_rank.load(in, &m_dbs);
+    }
 };
+
+// Specialization for CSAs
+template<class t_csa, class t_wt, class t_bv>
+void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, cache_config& config, uint8_t num_bytes)
+{
+    t_csa csa;
+    construct(csa, file, config, num_bytes);
+    t_wt wts;
+    construct(wts, cache_file_name(conf::KEY_SA, config));
+    // TODO: consider int alphabet
+    int_vector_buffer<8> text_buffer(cache_file_name(conf::KEY_TEXT, config));
+    
+    bit_vector dbs(text_buffer.size(), 0);
+    for (size_t i = 0; i < text_buffer.size(); i++)
+        dbs[i] = text_buffer[i] == '\n';
+        
+    util::delete_all_files(config.file_map);
+    
+    idx = std::move(matching_index<t_csa, t_wt, t_bv>(csa, wts, dbs));
+}
 
 }// end namespace sdsl
 #endif
