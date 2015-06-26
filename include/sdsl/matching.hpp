@@ -340,9 +340,6 @@ public:
     }
 };
 
-
-// TODO: construction mem-size graph (enrich data structure with phases)
-
 // TODO:
 // - some sdsl-typical members
 template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>, 
@@ -462,19 +459,34 @@ template<class t_csa, class t_wt, class t_bv>
 void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, cache_config& config, uint8_t num_bytes)
 {
     t_csa csa;
-    construct(csa, file, config, num_bytes);
+    {
+        auto event = memory_monitor::event("csa");
+        construct(csa, file, config, num_bytes);
+    }
     t_wt wts;
-    construct(wts, cache_file_name(conf::KEY_SA, config));
+    {
+        auto event = memory_monitor::event("wt");
+        construct(wts, cache_file_name(conf::KEY_SA, config));
+    }
     // TODO: consider int alphabet
     int_vector_buffer<8> text_buffer(cache_file_name(conf::KEY_TEXT, config));
     
-    bit_vector dbs(text_buffer.size(), 0);
-    for (size_t i = 0; i < text_buffer.size(); i++)
-        dbs[i] = text_buffer[i] == '\n';
+    t_bv bv;
+    {
+        auto event = memory_monitor::event("dbs");
+        bit_vector dbs(text_buffer.size(), 0);
+        for (size_t i = 0; i < text_buffer.size(); i++)
+            dbs[i] = text_buffer[i] == '\n';
+            
+        bv = std::move(t_bv(dbs));
+    }
         
     util::delete_all_files(config.file_map);
     
-    idx = std::move(matching_index<t_csa, t_wt, t_bv>(csa, wts, dbs));
+    {
+        auto event = memory_monitor::event("compose"); // contains rank support initialization
+        idx = std::move(matching_index<t_csa, t_wt, t_bv>(csa, wts, bv));
+    }
 }
 
 }// end namespace sdsl
