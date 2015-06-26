@@ -24,7 +24,7 @@ class index_wcsearch
         index_wcsearch(collection& col)
         {
             sdsl::cache_config cc(false,".","WCSEARCH_TMP");
-            sdsl::construct(index, col.file_map[consts::KEY_TEXT], cc, 1);
+            sdsl::construct(index, col.file_map[consts::KEY_TEXT], cc, 0);
         }
 
         size_type serialize(std::ostream& out, sdsl::structure_tree_node* v=NULL, std::string name="")const
