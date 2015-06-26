@@ -340,8 +340,6 @@ public:
     }
 };
 
-// TODO:
-// - some sdsl-typical members
 template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>, 
          class t_wt=wt_int<bit_vector, rank_support_v5<>, select_support_scan<1>, select_support_scan<0>>,
          class t_bv=rrr_vector<>>
@@ -377,35 +375,25 @@ public:
     const csa_type& csa = m_csa;
     const wt_type&  wt  = m_wt;
     
-    
+    //! Default constructor
     matching_index() = default;
     
+    //! Copy constructor
     matching_index(const matching_index& idx)
         : m_csa(idx.m_csa), m_wt(idx.m_wt), m_dbs(idx.m_dbs), m_dbs_rank(idx.m_dbs_rank)
     { 
         m_dbs_rank.set_vector(&m_dbs);
     }
+
+    //! Copy constructor
+    matching_index(matching_index&& idx)
+    {
+        *this = std::move(idx);
+    }
     
     matching_index(csa_type csa, wt_type wt, bv_type dbs)
         : m_csa(csa), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
     { }
-    
-    size_type get_document_index(size_type symbol_index) const
-    {
-        symbol_index = std::min(symbol_index, m_dbs.size());
-        return m_dbs_rank.rank(symbol_index);
-    }
-    
-    matching_container<iterator> match2(
-        const string s,
-        const incremental_wildcard_pattern p1
-        ) const
-    {
-        return matching_container<iterator>(
-            wild_card_match_iterator<index_type>(*this, s, p1),
-            wild_card_match_iterator<index_type>());
-    }
-    
 
     //! Assignment move operator
     matching_index& operator=(matching_index&& idx)
@@ -451,6 +439,22 @@ public:
         m_wt.load(in);
         m_dbs.load(in);
         m_dbs_rank.load(in, &m_dbs);
+    }
+
+    size_type get_document_index(size_type symbol_index) const
+    {
+        symbol_index = std::min(symbol_index, m_dbs.size());
+        return m_dbs_rank.rank(symbol_index);
+    }
+
+    matching_container<iterator> match2(
+        const string s,
+        const incremental_wildcard_pattern p1
+        ) const
+    {
+        return matching_container<iterator>(
+            wild_card_match_iterator<index_type>(*this, s, p1),
+            wild_card_match_iterator<index_type>());
     }
 };
 
