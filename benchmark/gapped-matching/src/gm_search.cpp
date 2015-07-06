@@ -82,11 +82,20 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     LOG(INFO) << " median_time_ms = " << duration_cast<milliseconds>(ts.median).count();
     LOG(INFO) << " qrt_3rd_time_ms = " << duration_cast<milliseconds>(ts.qrt_3rd).count();
     LOG(INFO) << " max_time_ms = " << duration_cast<milliseconds>(ts.max).count();
+
+    std::cout << "# checksum = " << checksum << std::endl;
+    std::cout << "# total_time_ms = " << duration_cast<milliseconds>(ts.total).count() << std::endl;
+    std::cout << "# min_time_ms = " << duration_cast<milliseconds>(ts.min).count() << std::endl;
+    std::cout << "# qrt_1st_time_ms = " << duration_cast<milliseconds>(ts.qrt_1st).count() << std::endl;
+    std::cout << "# mean_time_ms = " << duration_cast<milliseconds>(ts.mean).count() << std::endl;
+    std::cout << "# median_time_ms = " << duration_cast<milliseconds>(ts.median).count() << std::endl;
+    std::cout << "# qrt_3rd_time_ms = " << duration_cast<milliseconds>(ts.qrt_3rd).count() << std::endl;
+    std::cout << "# max_time_ms = " << duration_cast<milliseconds>(ts.max).count() << std::endl;
 }
 
 int main(int argc, const char* argv[])
 {
-    log::start_log(argc, argv);
+    log::start_log(argc, argv, false);
 
     /* parse command line */
     cmdargs_t args = parse_args(argc, argv);
