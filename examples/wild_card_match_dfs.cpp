@@ -129,11 +129,14 @@ int main(int argc, char* argv[])
 
     cout << "loading as matching_index" << endl;
 
-    //string index_file = string(argv[1]) + ".sdsl";
-
-    cache_config cc(false,".","WILD_CARD_MATCH_TMP");
+    string index_file = string(argv[1]) + ".sdsl";
     matching_index<> index;
-    construct(index, argv[1], cc, 1);
+    if (!load_from_file(index, index_file))
+    {
+        cache_config cc(false,".","WILD_CARD_MATCH_TMP");
+        construct(index, argv[1], cc, 1);
+        store_to_file(index, index_file);
+    }
 
     // CALLBACKS
     using size_type = matching_index<>::size_type;
