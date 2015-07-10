@@ -5,40 +5,58 @@ SRC_DIR = src
 TMP_DIR = ../tmp
 
 # TODO: configure those:
+SAMPLES = $(shell seq 1000 1000 20000)
 COLL_ID = ulysses
-COLL_PATT_ID = ulysses/patterns/test_patterns.txt
 
 TC_IDS:=$(call config_ids,test_case.config)
 
 all: execs 
 
+GM_WORDS = collections/$(COLL_ID).words.txt
+GM_PATTERNS = $(foreach SAMPLE,$(SAMPLES),collections/$(COLL_ID).$(SAMPLE).txt)
 GM_EXECS = $(foreach TC_ID,$(TC_IDS),build/gm_index-$(TC_ID).x) \
            $(foreach TC_ID,$(TC_IDS),build/gm_search-$(TC_ID).x)
 
-RES_FILES = $(foreach TC_ID,$(TC_IDS),results/$(TC_ID))
+RES_FILES = $(foreach SAMPLE,$(SAMPLES),$(foreach TC_ID,$(TC_IDS),results/$(TC_ID).$(SAMPLE)))
 						
 RES_FILE=results/all.txt
 
 # Targets for index and search
 # TODO
 
-execs: $(GM_EXECS) 
-
+execs: $(GM_EXECS)
 
 timing: execs $(RES_FILES) 
 	cat $(RES_FILES) > $(RES_FILE)
 	@cd visualize; make	
 
 # Format: results/[TC_ID]
-results/%: 
+results/%: $(GM_PATTERNS)
 	$(eval TC_ID:=$(call dim,1,$*)) 
+	$(eval SAMPLE:=$(call dim,2,$*)) 
 	@echo "Running build/gm_index-$(TC_ID).x -c collections/$(COLL_ID)"
-	@echo "Running build/gm_search-$(TC_ID).x -c collections/$(COLL_ID) -p collections/$(COLL_PATT_ID)"
-	@echo "# COLL_ID = $(COLL_ID)" >> $@
-	@echo "# COLL_PATT_ID = $(COLL_PATT_ID)" >> $@
+	@echo "Running build/gm_search-$(TC_ID).x -c collections/$(COLL_ID) -p collections/$(COLL_ID).$(SAMPLE).txt"
+	@echo "# COLL_ID = $(COLL_ID)" > $@
+	@echo "# PATT_SAMPLE = $(SAMPLE)" >> $@
 	@echo "# TC_ID = $(TC_ID)" >> $@
 	@build/gm_index-$(TC_ID).x -c collections/$(COLL_ID) >> $@
-	@build/gm_search-$(TC_ID).x -c collections/$(COLL_ID) -p collections/$(COLL_PATT_ID) >> $@
+	@build/gm_search-$(TC_ID).x -c collections/$(COLL_ID) -p collections/$(COLL_ID).$(SAMPLE).txt >> $@
+
+$(GM_WORDS):
+	@echo "Generating words"
+	@../../examples/generate-pattern.x collections/$(COLL_ID)/$(COLL_ID).raw 40 3 > $(GM_WORDS)
+
+collections/$(COLL_ID).%.txt: $(GM_WORDS)
+	$(eval SAMPLE:=$(call dim,1,$*))
+#	$(eval MINGAP:=$(SAMPLE))
+#	$(eval MAXGAP:=$(shell echo $(MINGAP)+10 | bc))
+	$(eval MINGAP:=0)
+	$(eval MAXGAP:=$(SAMPLE))
+	@sed 'N;s/\n/.{$(MINGAP),$(MAXGAP)}/' $(GM_WORDS) > $@
+
+# TODO: less hacky
+build/%:
+	cd build && cmake .. && make -j
 
 clean-build:
 	@echo "Remove executables"
@@ -46,6 +64,8 @@ clean-build:
 
 clean:
 	rm -f $(GM_EXECS)
+	rm -f $(GM_PATTERN)
+	rm -f $(GM_WORDS)
 
 clean_results: 
 	rm -f $(RES_FILES) 
