@@ -47,6 +47,7 @@ else()
     append_cxx_compiler_flags("-msse4.2 -O3  -ffast-math -funroll-loops -DNDEBUG" "CLANG" CMAKE_CXX_FLAGS_RELEASE)
 endif()
 
+FIND_PACKAGE(Boost 1.45 COMPONENTS regex)
 
 # # read the index configs
 file(GLOB index_config_files RELATIVE ${CMAKE_HOME_DIRECTORY}/config/ "${CMAKE_HOME_DIRECTORY}/config/*.config")
@@ -60,12 +61,14 @@ foreach(f ${index_config_files})
 		set(${key} "${value}")
 		list(APPEND compile_defs ${key}=${value})
 	endforeach(keyvalue)
+    INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 	ADD_EXECUTABLE(gm_index-${NAME}.x src/gm_index.cpp)
-	TARGET_LINK_LIBRARIES(gm_index-${NAME}.x sdsl divsufsort divsufsort64 pthread)
+	TARGET_LINK_LIBRARIES(gm_index-${NAME}.x sdsl divsufsort divsufsort64 pthread ${Boost_LIBRARIES})
 	set_property(TARGET gm_index-${NAME}.x PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
 
+    INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 	ADD_EXECUTABLE(gm_search-${NAME}.x src/gm_search.cpp)
-	TARGET_LINK_LIBRARIES(gm_search-${NAME}.x sdsl divsufsort divsufsort64 pthread)
+	TARGET_LINK_LIBRARIES(gm_search-${NAME}.x sdsl divsufsort divsufsort64 pthread ${Boost_LIBRARIES})
 	set_property(TARGET gm_search-${NAME}.x PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
 endforeach(f)
 

@@ -50,7 +50,6 @@ template <class t_idx> void create_and_store(collection& col)
         LOG(INFO) << "writing index to file : " << output_file;
         auto bytes = sdsl::serialize(idx, ofs);
         LOG(INFO) << "index size : " << bytes / (1024 * 1024) << " MiB";
-        std::cout << "# index_size = " << bytes << std::endl;
         LOG(INFO) << "writing space usage visualization to file : " << output_file + ".html";
         std::ofstream vofs(output_file + ".html");
         sdsl::write_structure<sdsl::HTML_FORMAT>(vofs, idx);

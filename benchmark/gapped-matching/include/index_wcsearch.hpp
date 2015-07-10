@@ -21,6 +21,7 @@ class index_wcsearch
         }
 
     public:
+        index_wcsearch() { }
         index_wcsearch(collection& col)
         {
             sdsl::cache_config cc(false,".","WCSEARCH_TMP");
