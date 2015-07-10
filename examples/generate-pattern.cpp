@@ -53,12 +53,13 @@ int main(int argc, char** argv)
     
     // traverse
     vector<pair<size_t, string>> found;
-    for (auto it=cst.begin(); it!=cst.end(); ++it) 
+    for (auto it=cst.begin(); it!=cst.end() && found.size() <= 3*count; ++it) 
     {
         if (it.visit() == 1) 
         {
             auto v = *it;
-            if (cst.depth(v) == 0)
+            auto depth = cst.depth(v);
+            if (depth == 0)
                 continue;
             
             string phrase = extract(cst, v).substr(0, length);
@@ -71,7 +72,7 @@ int main(int argc, char** argv)
             }
             
             // check length
-            if (phrase.size() == length)
+            if (depth >= length)
             {
                 // check for word boundary (approximation)
                 if (!is_special_char(cst.csa.L[cst.rb(v)]) 

@@ -6,7 +6,7 @@ all: gm.pdf
 
 gm.pdf: gm.tex
 	@echo "Use pdflatex to generate gm.pdf"
-	@pdflatex rrr.tex >> LaTeX.Log 2>&1
+	@pdflatex gm.tex >> LaTeX.Log 2>&1
 
 gm.tex: ../results/all.txt ../../basic_functions.R gm.R $(CONFIG_FILES)
 	@echo "Use R to generate gm.tex"
