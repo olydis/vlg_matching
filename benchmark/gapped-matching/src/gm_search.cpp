@@ -51,6 +51,7 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     LOG(INFO) << "BENCH_INDEX (" << idx.name() << ")";
 
     /* benchmark */
+    size_t num_results = 0;
     size_t checksum = 0;
     size_t npat = 1;
     timing_results t;
@@ -63,6 +64,7 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
         /* compute checksum */
         for (const auto& pos : res.positions) {
             checksum += pos;
+            num_results++;
         }
 
         auto time_ms = duration_cast<milliseconds>(dur);
@@ -83,6 +85,7 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     LOG(INFO) << " qrt_3rd_time_ms = " << duration_cast<milliseconds>(ts.qrt_3rd).count();
     LOG(INFO) << " max_time_ms = " << duration_cast<milliseconds>(ts.max).count();
 
+    std::cout << "# num_results = " << num_results << std::endl;
     std::cout << "# checksum = " << checksum << std::endl;
     std::cout << "# total_time_ms = " << duration_cast<milliseconds>(ts.total).count() << std::endl;
     std::cout << "# min_time_ms = " << duration_cast<milliseconds>(ts.min).count() << std::endl;

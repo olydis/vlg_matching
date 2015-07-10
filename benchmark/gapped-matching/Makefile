@@ -44,7 +44,7 @@ results/%: $(GM_PATTERNS)
 
 $(GM_WORDS):
 	@echo "Generating words"
-	@../../examples/generate-pattern.x collections/$(COLL_ID)/$(COLL_ID).raw 40 3 > $(GM_WORDS)
+	@../../examples/generate-pattern.x collections/$(COLL_ID)/$(COLL_ID).raw 20 4 > $(GM_WORDS)
 
 collections/$(COLL_ID).%.txt: $(GM_WORDS)
 	$(eval SAMPLE:=$(call dim,1,$*))

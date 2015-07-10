@@ -4,7 +4,7 @@ source("../../basic_functions.R")
 tex_file = "gm.tex"
 
 # Load experiment information
-tc_config <- readConfig("../test_case.config",c("TC_ID","LATEX-NAME"))
+tc_config <- readConfig("../test_case.config",c("TC_ID","LATEX-NAME","PCH","LTY","COL"))
 
 open_tikz <- function( file_name  ){
     tikz(file_name, width = 5.5, height = 6, standAlone = F)
@@ -17,28 +17,38 @@ plot_gm_query_times <- function( data, title=""){
   #data[c('total_time_ms')] <- data[c('total_time_ms')]/1000.0
   #data <- data[order(data[['PATT_SAMPLE']]), ]
 
-  max_runtime <- max(data[['total_time_ms']])
+  max_runtime <- max(data[['mean_time_ms']])
+  max_sample <- max(data[['PATT_SAMPLE']])
 
-  for(tc in unique(data$TC_ID)){
-    d <- data[data$TC_ID==tc,]
-    plot(data[['PATT_SAMPLE']], data[['total_time_ms']], type="l", ylim=c(0, max_runtime ),
-       xlab = "", ylab="", yaxt="n", cex.axis = 0.8, xaxt="n",
-       col = terrain.colors(6)[1], lwd=1.5
+    #plot(NA, NA, xlim=c(0,1),ylim=c(0,1),ylab="", xlab="", bty="n", type="n", yaxt="n", xaxt="n")
+    plot(NA, NA, type="l", xlim=c(0, max_sample ), ylim=c(0, max_runtime ),
+       xlab = "", ylab="", yaxt="n", xaxt="n"
        )
+
+  tc_ids <- unique(data$TC_ID)
+  for(tc in tc_ids){
+    d <- data[data$TC_ID==tc,]
+    lines(d[['PATT_SAMPLE']], d[['mean_time_ms']],
+          lwd=1, type="b", 
+          pch=tc_config[tc,"PCH"], 
+          lty=tc_config[tc,"LTY"],
+          col=tc_config[tc,"COL"])
     box("plot", col="grey")    
-    axis( 1, at = axTicks(1), labels=xaxis, mgp=c(2,0.5,0), tcl=-0.2, cex.axis=1, las=1 )
+    axis( 1, at = axTicks(1), labels=T, mgp=c(2,0.5,0), tcl=-0.2, cex.axis=1, las=1 )
 
   }
 
-    xlable <- "Gap size"
-    mtext(xlable, side=1, line=2, las=0)
 
+    mtext("Gap size", side=1, line=2, las=0)
     axis( 2, at = axTicks(2),  mgp=c(1,0.3,0), tcl=-0.2, cex.axis=0.8 )
-    mtext("Query time in ($\\mu s$)", side=2, line=2, las=0)
+    mtext("Average query time in ($ms$)", side=2, line=2, las=0)
 
   grid(lty=1)  
+  draw_figure_heading(sprintf("collection = %s",title))
 
-  #draw_figure_heading(sprintf("collection = %s",title))
+  plot(NA, NA, xlim=c(0,1),ylim=c(0,1),ylab="", xlab="", bty="n", type="n", yaxt="n", xaxt="n")
+  legend( "top", legend=tc_config[tc_ids,"LATEX-NAME"], pch=tc_config[tc_ids,"PCH"], col=tc_config[tc_ids,"COL"],
+		    lty=tc_config[tc_ids,"LTY"], bty="n", y.intersp=1.5, ncol=2, title="Algorithm", cex=1.2)
 }
 
 data <- data_frame_from_key_value_pairs( "../results/all.txt" )
@@ -59,7 +69,7 @@ for(coll in colls){
   dev.off()
   tex_doc <- paste(tex_doc,"\\begin{figure}
                \\input{",fig_name,"}
-               \\caption{Query time on \\texttt{",coll,"} dependent on gap size..
+               \\caption{Query time on \\texttt{",coll,"} depending on gap size.
                }
               \\end{figure}")
 }

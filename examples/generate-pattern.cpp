@@ -52,8 +52,13 @@ int main(int argc, char** argv)
     }
     
     // traverse
+    size_t size = cst.size();
+    size_t node_size_thresh = 1;
+    for (size_t i = 0; i < length; i++)
+        node_size_thresh *= 26;
+    
     vector<pair<size_t, string>> found;
-    for (auto it=cst.begin(); it!=cst.end() && found.size() <= 3*count; ++it) 
+    for (auto it=cst.begin(); it!=cst.end() && found.size() <= 1000*count; ++it) 
     {
         if (it.visit() == 1) 
         {
@@ -62,8 +67,14 @@ int main(int argc, char** argv)
             if (depth == 0)
                 continue;
             
-            string phrase = extract(cst, v).substr(0, length);
+            if (cst.size(v) < size / node_size_thresh)
+            {
+                it.skip_subtree();
+                continue;
+            }
             
+            string phrase = extract(cst, v).substr(0, length);
+                        
             // check charset
             if (!charset_string_predicate(phrase))
             {
