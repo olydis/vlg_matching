@@ -48,37 +48,25 @@ class index_wcsearch
         gapped_search_result
         search(const gapped_pattern& pat) const
         {
+            gapped_search_result res;
             std::string s1;
             std::string s2;
-            int min_gap;
-            int max_gap;
+            int min_gap = 0;
+            int max_gap = 0;
 
-            /* (1) parse pat (no error checking! parses: "<text>", "<text>.{<num>,<num>}<text>") */
-            std::string regexp = pat.raw_regexp;
-            int gap_decl_position = regexp.find(".{");
-            if (gap_decl_position == -1)
-            {
-                s2 = s1 = regexp;
-                min_gap = max_gap = 0;
-            }
-            else
-            {
-                s1 = regexp.substr(0, gap_decl_position);
-                regexp = regexp.substr(gap_decl_position + 2);
-
-                int gap_sepa_position = regexp.find(",");
-                min_gap = std::stoi(regexp.substr(0, gap_sepa_position)) + s1.size();
-                regexp = regexp.substr(gap_sepa_position + 1);
-
-                int gap_end_position = regexp.find("}");
-                max_gap = std::stoi(regexp.substr(0, gap_end_position)) + s1.size();
-                s2 = regexp.substr(gap_end_position + 1);
+            if (pat.subpatterns.size() == 1) {
+                s1 = pat.subpatterns[0];
+                s2 = pat.subpatterns[0];
+            } else {
+                s1 = pat.subpatterns[0];
+                s2 = pat.subpatterns[1];
+                min_gap = pat.gaps[0].first;
+                max_gap = pat.gaps[0].second;
             }
 
             /* (2) enum & copy the output */
-            gapped_search_result res;
-            for (auto hit : index.match2(s1, sdsl::incremental_wildcard_pattern(s2, min_gap, max_gap))) 
-            {
+
+            for (auto hit : index.match2(s1, sdsl::incremental_wildcard_pattern(s2, min_gap, max_gap))) {
                 res.positions.push_back(hit.first - 1);
             }
             return res;

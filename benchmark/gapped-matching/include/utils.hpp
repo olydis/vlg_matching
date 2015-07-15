@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
+#include <regex>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -16,12 +17,43 @@
 struct gapped_pattern {
     std::string raw_regexp;
     sdsl::int_vector<0> sdsl_regexp;
+    std::vector<std::string> subpatterns;
+    std::vector<std::string> gap_strs;
+    std::vector<std::pair<uint64_t,uint64_t>> gaps;
     gapped_pattern(const std::string& p) : raw_regexp(p)
     {
         sdsl_regexp.resize(raw_regexp.size());
         for (size_t i=0; i<raw_regexp.size(); i++) {
             sdsl_regexp[i] = raw_regexp[i];
         }
+        std::regex gap_regex(R"(\.\{[^,]*,[^,]*\})");
+        auto gaps_begin = std::sregex_iterator(raw_regexp.begin(),raw_regexp.end(),gap_regex);
+        auto gaps_end = std::sregex_iterator();
+        int64_t last_gap_end = -1;
+        for (auto i = gaps_begin; i != gaps_end; ++i) {
+            std::smatch match = *i;
+            std::string gap_str = match.str();
+            gap_strs.push_back(gap_str);
+            /* try parsing the gap  description */
+            auto first_num_sep = gap_str.find(",");
+            auto first_num_str = gap_str.substr(2,first_num_sep-2);
+            auto second_num_str = gap_str.substr(first_num_sep+1);
+            second_num_str.pop_back();
+            uint64_t first_gap_num = std::stoull(first_num_str);
+            uint64_t second_gap_num = std::stoull(second_num_str);
+            if (first_gap_num > second_gap_num) {
+                throw std::runtime_error("invalid gap description");
+            }
+            gaps.emplace_back(first_gap_num,second_gap_num);
+            auto gap_pos = match.position();
+            auto subptrlen = gap_pos - (last_gap_end+1);
+            auto subpattern = raw_regexp.substr(last_gap_end+1,subptrlen);
+            subpatterns.push_back(subpattern);
+            last_gap_end = gap_pos + gap_str.size() - 1;
+        }
+        auto last_subpattern = raw_regexp.substr(last_gap_end+1);
+        subpatterns.push_back(last_subpattern);
+        LOG(INFO) << "PARSED('" << raw_regexp << "') -> GAPS = " << gaps << " SUBPATTERNS = " << subpatterns;
     };
 };
 
@@ -46,7 +78,12 @@ parse_pattern_file(std::string file_name)
     if (in) {
         std::string line;
         while (std::getline(in,line)) {
-            patterns.emplace_back(gapped_pattern(line));
+            try {
+                gapped_pattern pat(line);
+                patterns.push_back(pat);
+            } catch (...) {
+                LOG(ERROR) << "Could not parse pattern '" << line << "'. Skipped";
+            }
         }
     } else {
         LOG(FATAL) << "Cannot open pattern file '" << file_name << "'";
