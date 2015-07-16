@@ -17,7 +17,7 @@ plot_gm_query_times <- function( data, title=""){
   #data[c('total_time_ms')] <- data[c('total_time_ms')]/1000.0
   #data <- data[order(data[['PATT_SAMPLE']]), ]
 
-  max_runtime <- max(data[['mean_time_ms']])
+  max_runtime <- max(1000 * data[['mean_time_ms']] / data[['num_results']])
   max_sample <- max(data[['PATT_SAMPLE']])
 
     #plot(NA, NA, xlim=c(0,1),ylim=c(0,1),ylab="", xlab="", bty="n", type="n", yaxt="n", xaxt="n")
@@ -28,7 +28,7 @@ plot_gm_query_times <- function( data, title=""){
   tc_ids <- unique(data$TC_ID)
   for(tc in tc_ids){
     d <- data[data$TC_ID==tc,]
-    lines(d[['PATT_SAMPLE']], d[['mean_time_ms']],
+    lines(d[['PATT_SAMPLE']], 1000 * d[['mean_time_ms']] / d[['num_results']],
           lwd=1, type="b", 
           pch=tc_config[tc,"PCH"], 
           lty=tc_config[tc,"LTY"],
@@ -41,7 +41,7 @@ plot_gm_query_times <- function( data, title=""){
 
     mtext("Gap size", side=1, line=2, las=0)
     axis( 2, at = axTicks(2),  mgp=c(1,0.3,0), tcl=-0.2, cex.axis=0.8 )
-    mtext("Average query time in ($ms$)", side=2, line=2, las=0)
+    mtext("Average query time in ($\\mu s$)", side=2, line=2, las=0)
 
   grid(lty=1)  
   draw_figure_heading(sprintf("collection = %s",title))
