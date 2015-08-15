@@ -131,6 +131,7 @@ class index_qgram_regexp
         gapped_search_result
         search(const gapped_pattern& pat) const
         {
+            std::cout << "search(" << pat.raw_regexp << ")" << std::endl;
             gapped_search_result res;
             std::regex rx(pat.raw_regexp.begin(),pat.raw_regexp.end(),REGEXP_TYPE);
 
@@ -200,7 +201,7 @@ class index_qgram_regexp
 
             /* sort potential positions */
             std::sort(potential_start_positions.begin(),potential_start_positions.end());
-            // LOG(INFO) << "potential_start_positions = " << potential_start_positions;
+            //LOG(INFO) << "potential_start_positions = " << potential_start_positions;
 
             /* (2) find all matching pos */
             if (potential_start_positions.empty()) { // case where we only have subpatterns smaller than q!
@@ -211,6 +212,8 @@ class index_qgram_regexp
                 }
             } else {
                 for (const auto& start_pos : potential_start_positions) {
+                    if (start_pos > m_text.size()) // bugfix by Johannes: start_pos seems to be a very very very large (= negative?) number sometimes => segfault in line below
+                        continue;
                     auto matches_begin = std::sregex_iterator(m_text.begin()+start_pos,m_text.begin()+start_pos+max_pattern_len,rx);
                     auto matches_end = std::sregex_iterator();
                     for (std::sregex_iterator it = matches_begin; it != matches_end; ++it) {
