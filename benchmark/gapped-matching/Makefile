@@ -9,7 +9,7 @@ TMP_DIR = ../tmp
 TC_IDS:=$(call config_ids,test_case.config)
 UNIQUE_SP_LENGTHS:=$(shell echo $(call config_column,test_case.config,2) | tr " " "\n" | uniq | tr "\n" " ")
 
-COLL_ID = ulysses
+COLL_ID = sources
 
 ALGOS:=$(call config_ids,algorithms.config)
 
@@ -77,7 +77,7 @@ clean:
 	rm -f $(GM_WORDS)
 	rm -f $(INDEX_SENTINELS)
 
-clean_results: 
+clean-results: 
 	rm -f $(RES_FILES) 
 		
 
