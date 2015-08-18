@@ -64,6 +64,7 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
         /* compute checksum */
         for (const auto& pos : res.positions) {
             checksum += pos;
+            // std::cerr << pos << std::endl;
             num_results++;
         }
 

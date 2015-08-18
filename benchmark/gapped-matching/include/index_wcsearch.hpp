@@ -66,7 +66,7 @@ class index_wcsearch
 
             /* (2) enum & copy the output */
 
-            for (auto hit : index.match2(s1, sdsl::incremental_wildcard_pattern(s2, min_gap, max_gap))) {
+            for (auto hit : index.match2(s1, sdsl::incremental_wildcard_pattern(s2, s1.size() + min_gap, s1.size() + max_gap))) {
                 res.positions.push_back(hit.first - 1);
             }
             return res;

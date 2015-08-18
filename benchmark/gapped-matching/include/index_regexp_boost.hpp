@@ -53,7 +53,7 @@ class index_regexp_boost
             boost::regex rx(pat.raw_regexp.begin(),pat.raw_regexp.end(),REGEXP_TYPE);
 
             /* (2) find all matching pos */
-            auto matches_begin = boost::sregex_iterator(m_text.begin(),m_text.end(),rx);
+            auto matches_begin = boost::sregex_iterator(m_text.begin(),m_text.end(),rx,boost::regex_constants::match_flag_type::match_not_dot_newline);
             auto matches_end = boost::sregex_iterator();
 
 
