@@ -13,9 +13,8 @@ int main(int argc, char** argv)
         cout << " - count:      Number of patterns to extract" << endl;
         cout << " - length:     Minimum length of patterns to extract" << endl;
         cout << " - charset:" << endl;
-        cout << "   - 0 = alpha-numerical only" << endl;
-        cout << "   - 1 = anything" << endl;
-        cout << "   - default = length >= 10" << endl;
+        cout << "   - 0 = alpha-numerical only (default)" << endl;
+        cout << "   - 1 = alpha-numerical with whitespace" << endl;
         cout << endl;
         cout << " Uses a CST to extract most common patterns/phrases matching provided criteria." << endl;
         cout << endl;
@@ -26,14 +25,14 @@ int main(int argc, char** argv)
     string file(argv[1]);
     size_t count = atoi(argv[2]);
     size_t length = atoi(argv[3]);
-    int charset = argc <= 4 ? (length >= 10 ? 1 : 0) : atoi(argv[4]);
+    int charset = argc <= 4 ? 0 : atoi(argv[4]);
     
     // CHARSET
     auto is_special_char = [](char c) { return isspace(c) || ispunct(c); };
 
     std::function<bool(char c)> charset_predicates[] = {
         [](char c) { return isalnum(c) || c == '_'; },
-        [](char c) { return c != '\n' && c != '\r' && c != '\t' && c != '\v'; }
+        [](char c) { return isalnum(c) || c == '_' || c == ' '; }
     };
     auto charset_predicate = charset_predicates[charset];
     auto charset_string_predicate = [&](string s) { return all_of(s.begin(), s.end(), charset_predicate); };
@@ -60,13 +59,16 @@ int main(int argc, char** argv)
             if (depth == 0)
                 continue;
             
-            if (cst.size(v) <= min_occ())
+            auto curr_min_occ = min_occ();
+            auto curr_occ = cst.size(v);
+            if (curr_occ <= curr_min_occ && found.size() == count)
             {
                 it.skip_subtree();
                 continue;
             }
             
-            string phrase = extract(cst, v).substr(0, length);
+            auto begin = cst.csa[cst.lb(v)];
+            string phrase = extract(cst.csa, begin, begin + min(depth, length) - 1);
                         
             // check charset
             if (!charset_string_predicate(phrase))
@@ -86,19 +88,22 @@ int main(int argc, char** argv)
                     continue;
                 }
 
-                size_t occ = cst.size(v);
                 stack<pair<size_t, string>> helper;
-                while (!found.empty() && found.top().first < occ)
+                while (!found.empty() && found.top().first < curr_occ)
                 {
                     helper.push(found.top());
                     found.pop();
                 }
-                found.emplace(occ, phrase);
+                found.emplace(curr_occ, phrase);
                 while (found.size() < count && !helper.empty())
                 {
                     found.push(helper.top());
                     helper.pop();
                 }
+                
+                // report status
+                cerr << "Found " << found.size() << " phrases with min. #occurrences of " << found.top().first << " so far" << endl;
+                
                 it.skip_subtree();
             }
         }
