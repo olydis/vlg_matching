@@ -40,14 +40,14 @@ int main(int argc, char** argv)
     string cst_file = file + ".sdsl";
     cst_sct3<> cst;
     if (!load_from_file(cst, cst_file)) {
-        construct(cst, file, 1);
+        construct(cst, file, 0);
         store_to_file(cst, cst_file);
     }
 
     // traverse
     size_t size = cst.size();
-    // TODO: replace by priority_queue<  > min queue
-    stack<pair<size_t, string>> found;
+    using entry_type = pair<size_t, string>;
+    priority_queue<entry_type, vector<entry_type>, greater<entry_type>> found;
     auto min_occ = [&]() { return found.empty() ? 0 : found.top().first; };
     for (auto it=cst.begin(); it!=cst.end(); ++it) {
         if (it.visit() == 1) {
@@ -81,16 +81,9 @@ int main(int argc, char** argv)
                     continue;
                 }
 
-                stack<pair<size_t, string>> helper;
-                while (!found.empty() && found.top().first < curr_occ) {
-                    helper.push(found.top());
-                    found.pop();
-                }
                 found.emplace(curr_occ, phrase);
-                while (found.size() < count && !helper.empty()) {
-                    found.push(helper.top());
-                    helper.pop();
-                }
+                if (found.size() > count)
+                    found.pop();
 
                 // report status
                 cerr << "Found " << found.size() << " phrases with min. #occurrences of " << found.top().first << " so far" << endl;
