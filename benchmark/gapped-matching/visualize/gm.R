@@ -18,7 +18,7 @@ plot_gm_query_times <- function( data, title=""){
   #data[c('total_time_ms')] <- data[c('total_time_ms')]/1000.0
   #data <- data[order(data[['PATT_SAMPLE']]), ]
 
-  runtime <- 1000 * data[['mean_time_ms']] / data[['num_results']]
+  runtime <- 1000 * data[['mean_time_ms']] # / data[['num_results']]
   max_runtime <- max(runtime[!is.infinite(runtime) & !is.nan(runtime)])
   max_sample <- length(unique(data[['PATT_SAMPLE']]))
 
@@ -28,7 +28,7 @@ plot_gm_query_times <- function( data, title=""){
   ALGO_IDs <- unique(data$ALGO)
   for(tc in ALGO_IDs){
     d <- data[data$ALGO==tc,]
-    lines(d[['PATT_SAMPLE']], 1000 * d[['mean_time_ms']] / d[['num_results']],
+    lines(d[['PATT_SAMPLE']], 1000 * d[['mean_time_ms']], # / d[['num_results']],
           lwd=1, type="b", 
           pch=algo_config[tc,"PCH"], 
           lty=algo_config[tc,"LTY"],
