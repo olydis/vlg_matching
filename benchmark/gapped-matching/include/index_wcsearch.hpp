@@ -60,13 +60,12 @@ class index_wcsearch
             } else {
                 s1 = pat.subpatterns[0];
                 s2 = pat.subpatterns[1];
-                min_gap = pat.gaps[0].first;
-                max_gap = pat.gaps[0].second;
+                min_gap = s1.size() + pat.gaps[0].first;
+                max_gap = s1.size() + pat.gaps[0].second;
+                // add "s1.size()" because "match2" currently requires word-beginning-relative gaps (which implicitly allows single-term matching by setting min/max_gap=0)
             }
 
-            /* (2) enum & copy the output */
-
-            for (auto hit : index.match2(s1, sdsl::incremental_wildcard_pattern(s2, s1.size() + min_gap, s1.size() + max_gap))) {
+            for (auto hit : index.match2(s1, sdsl::incremental_wildcard_pattern(s2, min_gap, max_gap))) {
                 res.positions.push_back(hit.first - 1);
             }
             return res;

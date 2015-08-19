@@ -48,7 +48,7 @@ collections/%.words.txt:
 	$(eval COLL_ID:=$(call dim,1,$*))
 	$(eval SP_LENGTH:=$(call dim,2,$*))
 	@echo "Extracting words of length $(SP_LENGTH) from $(COLL_ID)..."
-	@../../examples/generate-pattern.x collections/$(COLL_ID)/$(COLL_ID).raw 20 $(SP_LENGTH) > $@
+	@../../examples/generate-pattern.x collections/$(COLL_ID)/text.TEXT 20 $(SP_LENGTH) > $@
 
 collections/%.regex.txt: $(GM_WORDS)
 	$(eval COLL_ID:=$(call dim,1,$*))
@@ -61,7 +61,7 @@ collections/%.regex.txt: $(GM_WORDS)
 
 # TODO: less hacky
 build/%:
-	cd build && cmake .. && make -j
+	cd build && cmake .. && make -j 2
 
 clean-build:
 	@echo "Remove executables"
