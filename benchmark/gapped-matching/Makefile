@@ -9,7 +9,7 @@ TMP_DIR = ../tmp
 TC_IDS:=$(call config_ids,test_case.config)
 UNIQUE_SP_LENGTHS:=$(shell echo $(call config_column,test_case.config,2) | tr " " "\n" | uniq | tr "\n" " ")
 
-COLL_ID = sources
+COLL_ID = sources-1048576
 
 ALGOS:=$(call config_ids,algorithms.config)
 

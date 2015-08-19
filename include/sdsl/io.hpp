@@ -173,11 +173,21 @@ bool load_from_file(T& v, const std::string& file);
 
 //! Load an int_vector from a plain array of `num_bytes`-byte integers with X in \{0, 1,2,4,8\} from disk.
 // TODO: Remove ENDIAN dependency.
-template<class t_int_vec>
-bool load_vector_from_file(t_int_vec& v, const std::string& file, uint8_t num_bytes=1, uint8_t max_int_width=64)
+template<uint8_t t_w>
+bool load_vector_from_file(int_vector<t_w>& v, const std::string& file, uint8_t num_bytes=1, uint8_t max_int_width=64)
 {
     if ((uint8_t)0 == num_bytes) {  // if byte size is variable read int_vector<0> from file
-        return load_from_file(v, file);
+        if (t_w==0) {
+            return load_from_file(v, file);
+        } else {
+            int_vector<t_w-t_w> v0;
+            bool success = load_from_file(v0, file);
+            v.resize(v0.size());
+            for (size_t i=0; i<v0.size(); ++i) {
+                v[i] = v0[i];
+            }
+            return success;
+        }
     } else if (num_bytes == 'd') {
         uint64_t x = 0, max_x = 0;
         isfstream in(file);
@@ -210,7 +220,7 @@ bool load_vector_from_file(t_int_vec& v, const std::string& file, uint8_t num_by
         if (in) {
             v.width(std::min((int)8*num_bytes, (int)max_int_width));
             v.resize(file_size / num_bytes);
-            if (8 == t_int_vec::fixed_int_width and 1 == num_bytes) {  // if int_vector<8> is created from byte alphabet file
+            if (8 == t_w and 1 == num_bytes) {  // if int_vector<8> is created from byte alphabet file
                 in.read((char*)v.data(), file_size);
             } else {
                 size_t idx=0;
@@ -305,7 +315,8 @@ double size_in_mega_bytes(const T& t);
 
 struct nullstream : std::ostream {
     struct nullbuf: std::streambuf {
-        int overflow(int c) {
+        int overflow(int c)
+        {
             return traits_type::not_eof(c);
         }
         int xputc(int) { return 0; }
