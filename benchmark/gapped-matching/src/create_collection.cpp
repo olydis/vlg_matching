@@ -76,6 +76,10 @@ int main(int argc, const char* argv[])
                   std::back_inserter(buf));
     }
     {
+        for (size_t i=0; i<buf.size(); ++i) {
+            if (buf[i] == '\n' or buf[i] == '\r')
+                buf[i] = ' ';
+        }
         gm_timer tm("BIT COMPRESS",true);
         sdsl::util::bit_compress(buf);
     }
