@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <numeric>
 
 #include "logging.hpp"
 

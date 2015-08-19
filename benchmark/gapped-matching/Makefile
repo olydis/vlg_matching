@@ -25,10 +25,6 @@ RES_FILES = $(foreach TC_ID,$(TC_IDS),$(foreach ALGO,$(ALGOS),results/$(ALGO).$(
 						
 RES_FILE=results/all.txt
 
-poll:
-	@echo $(TC_IDS)
-	@echo $(GM_WORDS)
-
 execs: $(GM_EXECS)
 
 timing: execs $(RES_FILES) 
@@ -69,7 +65,7 @@ build/%:
 
 clean-build:
 	@echo "Remove executables"
-	rm -f $(GM_EXECS)
+	rm -rf build/*
 
 clean:
 	rm -f $(GM_EXECS)
@@ -81,4 +77,4 @@ clean-results:
 	rm -f $(RES_FILES) 
 		
 
-cleanall: clean clean_results
+cleanall: clean clean-results clean-build

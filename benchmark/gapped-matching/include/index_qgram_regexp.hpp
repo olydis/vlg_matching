@@ -51,10 +51,11 @@ class index_qgram_regexp
             {
                 std::unordered_map<uint64_t,std::vector<uint64_t>> tmp_qgram_lists;
                 auto itr = sdsl_text.begin();
-                auto end = sdsl_text.end() - (q-1);
+                auto end = sdsl_text.end() - (q-1); // TODO: problem when test.size() < q
 
                 size_type cur_pos = 0;
                 union qid_type qid;
+
                 while (itr != end) {
                     qid.u64id = 0;
                     std::copy(itr,itr+q,std::begin(qid.u8id));
@@ -156,7 +157,7 @@ class index_qgram_regexp
                 if (subp.size() < q) { // UNION over lists. TODO!
                     LOG(INFO) << "skip small q-gram for now: " << subp;
                 } else { // Intersection over lists
-                    auto qids = str_to_qids(subp);
+                    auto qids = str_to_qids(subp);   // get vector of q-grams for subpattern subp
                     // LOG(INFO) << "subpattern = '" << subp << "' qgram-ids = " << qids;
                     /* for each qgram get the list */
                     std::vector<typename comp_list_type::list_type> plists;
@@ -173,7 +174,7 @@ class index_qgram_regexp
                             lists.emplace_back(offset_proxy_list<typename comp_list_type::list_type>(plists.back(),i++));
                         }
                     }
-                    if (lists.size() > 1) {
+                    if (lists.size() > 1) { // intersect lists of q-grams of subpatterns if there is more than on list (= qids.size() > 1)
                         auto ires = pos_intersect(lists);
                         if (potential_start_positions.empty() || ires.size() < potential_start_positions.size()) {
                             potential_start_positions.clear();
@@ -181,7 +182,8 @@ class index_qgram_regexp
                                 potential_start_positions.push_back(ires[l]-pat_start_offset);
                             }
                         }
-                    } else {
+                    } else { // no intersection required if there is only list (=qids.size()==1)
+
                         if (potential_start_positions.empty() || lists[0].size() < potential_start_positions.size()) {
                             potential_start_positions.clear();
                             auto itr = lists[0].begin();
