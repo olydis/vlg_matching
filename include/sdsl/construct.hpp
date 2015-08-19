@@ -122,14 +122,7 @@ void construct(t_index& idx, const std::string& file, cache_config& config, uint
         // (1) check, if the text is cached
         if (!cache_file_exists(KEY_TEXT, config)) {
             text_type text;
-            std::cout<<"load_vector_from_file("<<file<<")"<<std::endl;
             load_vector_from_file(text, file, num_bytes);
-            std::cout<<"text.size="<<text.size()<<std::endl;
-            for (size_t i=0; i<text.size(); ++i) {
-                if (text[i]==0) {
-                    std::cout<<"text["<<i<<"]=0"<<std::endl;
-                }
-            }
             if (contains_no_zero_symbol(text, file)) {
                 append_zero_symbol(text);
                 store_to_cache(text,KEY_TEXT, config);

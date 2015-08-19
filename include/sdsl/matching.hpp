@@ -452,35 +452,20 @@ matching_container<iterator> match2(
 template<class t_csa, class t_wt, class t_bv>
 void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, cache_config& config, uint8_t num_bytes)
 {
-    std::cout<<"num_bytes=0"<<std::endl;
-    {
-        std::cout<<"file="<<file<<std::endl;
-                           std::cout<<"file2="<< cache_file_name(conf::KEY_TEXT, config) << std::endl;
-                                               int_vector_buffer<0> text_buffer(file);
-                                               std::cout<<"text_buffer.size()="<<text_buffer.size()<<std::endl;
-        for (size_t i=0; i<text_buffer.size(); ++i) {
-            if (text_buffer[i]==0) {
-                std::cout<<"text_buffer["<<i<<"]=0"<<std::endl;
-            }
-        }
-    }
-              t_csa csa;
+    t_csa csa;
     {
         auto event = memory_monitor::event("csa");
         construct(csa, file, config, num_bytes);
-        std::cout<<"csa constructed"<<std::endl;
     }
-              t_wt wts;
+    t_wt wts;
     {
         auto event = memory_monitor::event("wt");
         construct(wts, cache_file_name(conf::KEY_SA, config));
-        std::cout<<"wt constructed"<<std::endl;
     }
 
-              int_vector_buffer<0> text_buffer(cache_file_name(conf::KEY_TEXT, config));
-    std::cout<<"text buffer"<<std::endl;
-
-              t_bv bv;
+    int_vector_buffer<0> text_buffer(cache_file_name(conf::KEY_TEXT, config));
+    
+    t_bv bv;
     {
         auto event = memory_monitor::event("dbs");
         bit_vector dbs(text_buffer.size(), 0);
