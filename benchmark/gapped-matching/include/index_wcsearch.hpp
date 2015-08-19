@@ -51,8 +51,8 @@ class index_wcsearch
             gapped_search_result res;
             std::string s1;
             std::string s2;
-            int min_gap = 0;
-            int max_gap = 0;
+            size_type min_gap = 0;
+            size_type max_gap = 0;
 
             if (pat.subpatterns.size() == 1) {
                 s1 = pat.subpatterns[0];

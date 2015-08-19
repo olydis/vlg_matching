@@ -53,8 +53,8 @@ class index_dbsearch
             gapped_search_result res;
             std::string s1;
             std::string s2;
-            int min_gap = 0;
-            int max_gap = 0;
+            size_type min_gap = 0;
+            size_type max_gap = 0;
 
             if (pat.subpatterns.size() == 1) {
                 s1 = pat.subpatterns[0];
@@ -71,8 +71,8 @@ class index_dbsearch
             size_type sp2, ep2;
             vector<size_type> range_a(backward_search(index.csa, 0, index.csa.size()-1, s1.begin(), s1.end(), sp1, ep1));
             vector<size_type> range_b(backward_search(index.csa, 0, index.csa.size()-1, s2.begin(), s2.end(), sp2, ep2));
-            std::copy(index.csa.begin() + sp1, index.csa.begin() + ep1, range_a.begin());
-            std::copy(index.csa.begin() + sp2, index.csa.begin() + ep2, range_b.begin());
+            std::copy(index.csa.begin() + sp1, index.csa.begin() + ep1 + 1, range_a.begin());
+            std::copy(index.csa.begin() + sp2, index.csa.begin() + ep2 + 1, range_b.begin());
             std::sort(range_a.begin(), range_a.end());
             std::sort(range_b.begin(), range_b.end());
             
@@ -82,7 +82,7 @@ class index_dbsearch
                 std::make_pair(0, range_a.size()), 
                 std::make_pair(0, range_b.size()));
             while (!todo.empty())
-            {
+            {                
                 double_range_type top = todo.top(); todo.pop();
                 range_type& subrange_a = top.first;
                 range_type& subrange_b = top.second;
@@ -91,7 +91,7 @@ class index_dbsearch
                 if (size_a > 0 && size_b > 0)
                 {
                     // always perform binary search on larger interval
-                    if (size_a < size_b)
+                    if (size_a > size_b)
                     {
                         size_type median_index = (subrange_a.first + subrange_a.second) / 2;
                         size_type median_element = range_a[median_index];
@@ -123,11 +123,11 @@ class index_dbsearch
                         auto lb = std::lower_bound(
                             range_a.begin() + subrange_a.first, 
                             range_a.begin() + subrange_a.second,
-                            median_element - max_gap);
+                            median_element < max_gap ? 0 : (median_element - max_gap));
                         auto rb = std::upper_bound(
                             range_a.begin() + subrange_a.first, 
                             range_a.begin() + subrange_a.second,
-                            median_element - min_gap);
+                            median_element < min_gap ? 0 : (median_element - min_gap));
                         size_type lb_idx = lb - range_a.begin();
                         size_type rb_idx = rb - range_a.begin();
                         
