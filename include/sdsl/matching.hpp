@@ -47,24 +47,20 @@ struct incremental_wildcard_pattern {
     const string pattern;
     const size_t min_gap;
     const size_t max_gap;
-    const string except;
 
     incremental_wildcard_pattern() :
         pattern(""),
         min_gap(0),
-        max_gap(0),
-        except("")
+        max_gap(0)
     { }
 
     incremental_wildcard_pattern(
         const string pattern,
         const size_t min_gap,
-        const size_t max_gap,
-        const string except = "") :
+        const size_t max_gap) :
         pattern(pattern),
         min_gap(min_gap),
-        max_gap(max_gap),
-        except(except)
+        max_gap(max_gap)
     {
     }
 };
@@ -330,154 +326,153 @@ template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>,
          class t_bv=rrr_vector<>>
 class matching_index
 {
-    static_assert(std::is_same<typename index_tag<t_csa>::type, csa_tag>::value,
-            "First template argument has to be a suffix array.");
-    static_assert(std::is_same<typename index_tag<t_wt>::type, wt_tag>::value,
-            "Second template argument has to be a wavelet tree.");
-    static_assert(std::is_same<typename index_tag<t_bv>::type, bv_tag>::value,
-            "Third template argument has to be a bitvector.");
+        static_assert(std::is_same<typename index_tag<t_csa>::type, csa_tag>::value,
+                "First template argument has to be a suffix array.");
+        static_assert(std::is_same<typename index_tag<t_wt>::type, wt_tag>::value,
+                "Second template argument has to be a wavelet tree.");
+        static_assert(std::is_same<typename index_tag<t_bv>::type, bv_tag>::value,
+                "Third template argument has to be a bitvector.");
 
-private:
-    typedef matching_index<t_csa, t_wt, t_bv> index_type;
-public:
-    typedef t_csa                         csa_type;
-    typedef t_wt                          wt_type;
-    typedef t_bv                          bv_type;
-    typedef typename bv_type::rank_1_type rank_type;
-    typedef typename wt_type::node_type   node_type;
-    typedef typename csa_type::size_type  size_type;
+    private:
+        typedef matching_index<t_csa, t_wt, t_bv> index_type;
+    public:
+        typedef t_csa                         csa_type;
+        typedef t_wt                          wt_type;
+        typedef t_bv                          bv_type;
+        typedef typename bv_type::rank_1_type rank_type;
+        typedef typename wt_type::node_type   node_type;
+        typedef typename csa_type::size_type  size_type;
 
-    typedef wild_card_match_iterator<index_type> iterator;
+        typedef wild_card_match_iterator<index_type> iterator;
 
 
-private:
-    csa_type  m_csa;
-    wt_type   m_wt;
-    bv_type   m_dbs; // 1 marks the END of a document
-    rank_type m_dbs_rank;
+    private:
+        csa_type  m_csa;
+        wt_type   m_wt;
+        bv_type   m_dbs; // 1 marks the END of a document
+        rank_type m_dbs_rank;
 
-public:
-    const csa_type& csa = m_csa;
-    const wt_type&  wt  = m_wt;
+    public:
+        const csa_type& csa = m_csa;
+        const wt_type&  wt  = m_wt;
 
-    //! Default constructor
-    matching_index() = default;
+        //! Default constructor
+        matching_index() = default;
 
-    //! Copy constructor
-    matching_index(const matching_index& idx)
-        : m_csa(idx.m_csa), m_wt(idx.m_wt), m_dbs(idx.m_dbs), m_dbs_rank(idx.m_dbs_rank)
-    {
-        m_dbs_rank.set_vector(&m_dbs);
-    }
-
-    //! Copy constructor
-    matching_index(matching_index&& idx)
-    {
-        *this = std::move(idx);
-    }
-
-    matching_index(csa_type csa, wt_type wt, bv_type dbs)
-    : m_csa(csa), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
-    { }
-
-    //! Assignment move operator
-    matching_index& operator=(matching_index&& idx)
-    {
-        if (this != &idx) {
-            m_csa      = std::move(idx.m_csa);
-            m_wt       = std::move(idx.m_wt);
-            m_dbs      = std::move(idx.m_dbs);
-            m_dbs_rank = std::move(idx.m_dbs_rank);
+        //! Copy constructor
+        matching_index(const matching_index& idx)
+            : m_csa(idx.m_csa), m_wt(idx.m_wt), m_dbs(idx.m_dbs), m_dbs_rank(idx.m_dbs_rank)
+        {
             m_dbs_rank.set_vector(&m_dbs);
         }
-        return *this;
-    }
 
-    //! Swap operation
-    void swap(matching_index& idx)
-    {
-        if (this != &idx) {
-            m_csa.swap(idx.m_csa);
-            m_wt.swap(idx.m_wt);
-            m_dbs.swap(idx.m_dbs);
-            util::swap_support(m_dbs_rank, idx.m_dbs_rank, &m_dbs, &(idx.m_dbs));
-        }
-    }
-
-    //! Serializes the data structure into the given ostream
-    size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const
-    {
-        structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
-        size_type written_bytes = 0;
-        written_bytes += m_csa.serialize(out, child, "csa");
-        written_bytes += m_wt.serialize(out, child, "wt");
-        written_bytes += m_dbs.serialize(out, child, "dbs");
-        written_bytes += m_dbs_rank.serialize(out, child, "dbs_rank");
-        structure_tree::add_size(child, written_bytes);
-        return written_bytes;
-    }
-
-    //! Loads the data structure from the given istream.
-    void load(std::istream& in)
-    {
-        m_csa.load(in);
-        m_wt.load(in);
-        m_dbs.load(in);
-        m_dbs_rank.load(in, &m_dbs);
-    }
-
-    size_type get_document_index(size_type symbol_index) const
-    {
-        symbol_index = std::min(symbol_index, m_dbs.size());
-        return m_dbs_rank.rank(symbol_index);
-    }
-
-    matching_container<iterator> match2(
-        const string s,
-        const incremental_wildcard_pattern p1
-    ) const
-    {
-        return matching_container<iterator>(
-            wild_card_match_iterator<index_type>(*this, s, p1),
-            wild_card_match_iterator<index_type>());
-    }
-                                };
-
-    // Specialization for CSAs
-    template<class t_csa, class t_wt, class t_bv>
-    void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, cache_config& config, uint8_t num_bytes)
-    {
-        t_csa csa;
+        //! Copy constructor
+        matching_index(matching_index&& idx)
         {
-            auto event = memory_monitor::event("csa");
-            construct(csa, file, config, num_bytes);
-        }
-        t_wt wts;
-        {
-            auto event = memory_monitor::event("wt");
-            construct(wts, cache_file_name(conf::KEY_SA, config));
-        }
-        
-        int_vector_buffer<0> text_buffer(file);
-        
-        t_bv bv;
-        {
-            auto event = memory_monitor::event("dbs");
-            bit_vector dbs(text_buffer.size(), 0);
-            std::cout << "dat size:" << dbs.size() << std::endl;
-            for (size_t i = 0; i < dbs.size(); i++)
-                dbs[i] = text_buffer[i] == '\n';
-
-            bv = std::move(t_bv(dbs));
+            *this = std::move(idx);
         }
 
-        util::delete_all_files(config.file_map);
+        matching_index(csa_type csa, wt_type wt, bv_type dbs)
+        : m_csa(csa), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
+        { }
 
+        //! Assignment move operator
+        matching_index& operator=(matching_index&& idx)
         {
-            auto event = memory_monitor::event("compose"); // contains rank support initialization
-            idx = std::move(matching_index<t_csa, t_wt, t_bv>(csa, wts, bv));
+            if (this != &idx) {
+                m_csa      = std::move(idx.m_csa);
+                m_wt       = std::move(idx.m_wt);
+                m_dbs      = std::move(idx.m_dbs);
+                m_dbs_rank = std::move(idx.m_dbs_rank);
+                m_dbs_rank.set_vector(&m_dbs);
+            }
+            return *this;
         }
+
+        //! Swap operation
+        void swap(matching_index& idx)
+        {
+            if (this != &idx) {
+                m_csa.swap(idx.m_csa);
+                m_wt.swap(idx.m_wt);
+                m_dbs.swap(idx.m_dbs);
+                util::swap_support(m_dbs_rank, idx.m_dbs_rank, &m_dbs, &(idx.m_dbs));
+            }
+        }
+
+        //! Serializes the data structure into the given ostream
+        size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const
+        {
+            structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
+            size_type written_bytes = 0;
+            written_bytes += m_csa.serialize(out, child, "csa");
+            written_bytes += m_wt.serialize(out, child, "wt");
+            written_bytes += m_dbs.serialize(out, child, "dbs");
+            written_bytes += m_dbs_rank.serialize(out, child, "dbs_rank");
+            structure_tree::add_size(child, written_bytes);
+            return written_bytes;
+        }
+
+        //! Loads the data structure from the given istream.
+        void load(std::istream& in)
+        {
+            m_csa.load(in);
+            m_wt.load(in);
+            m_dbs.load(in);
+            m_dbs_rank.load(in, &m_dbs);
+        }
+
+        size_type get_document_index(size_type symbol_index) const
+        {
+            symbol_index = std::min(symbol_index, m_dbs.size());
+            return m_dbs_rank.rank(symbol_index);
+        }
+
+        matching_container<iterator> match2(
+            const string s,
+            const incremental_wildcard_pattern p1
+        ) const
+        {
+            return matching_container<iterator>(
+                wild_card_match_iterator<index_type>(*this, s, p1),
+                wild_card_match_iterator<index_type>());
+        }
+};
+
+template<class t_csa, class t_wt, class t_bv>
+void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, cache_config& config, uint8_t num_bytes)
+{
+    t_csa csa;
+    {
+        auto event = memory_monitor::event("csa");
+        construct(csa, file, config, num_bytes);
     }
+    t_wt wts;
+    {
+        auto event = memory_monitor::event("wt");
+        construct(wts, cache_file_name(conf::KEY_SA, config));
+    }
+    
+    int_vector_buffer<0> text_buffer(file);
+    
+    t_bv bv;
+    {
+        auto event = memory_monitor::event("dbs");
+        bit_vector dbs(text_buffer.size(), 0);
+        std::cout << "dat size:" << dbs.size() << std::endl;
+        for (size_t i = 0; i < dbs.size(); i++)
+            dbs[i] = text_buffer[i] == '\n';
+
+        bv = std::move(t_bv(dbs));
+    }
+
+    util::delete_all_files(config.file_map);
+
+    {
+        auto event = memory_monitor::event("compose"); // contains rank support initialization
+        idx = std::move(matching_index<t_csa, t_wt, t_bv>(csa, wts, bv));
+    }
+}
 
 }// end namespace sdsl
 #endif

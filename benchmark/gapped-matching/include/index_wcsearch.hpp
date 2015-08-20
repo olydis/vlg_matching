@@ -51,18 +51,21 @@ class index_wcsearch
             gapped_search_result res;
             std::string s1;
             std::string s2;
-            size_type min_gap = 0;
-            size_type max_gap = 0;
+            size_type min_gap;
+            size_type max_gap;
 
             if (pat.subpatterns.size() == 1) {
                 s1 = pat.subpatterns[0];
                 s2 = pat.subpatterns[0];
+                min_gap = 0;
+                max_gap = 0;
             } else {
                 s1 = pat.subpatterns[0];
                 s2 = pat.subpatterns[1];
                 min_gap = s1.size() + pat.gaps[0].first;
                 max_gap = s1.size() + pat.gaps[0].second;
-                // add "s1.size()" because "match2" currently requires word-beginning-relative gaps (which implicitly allows single-term matching by setting min/max_gap=0)
+                // add "s1.size()" because "match2" currently requires word-beginning-relative gaps
+                // (this is an important concept, as it allows single-term matching by setting min/max_gap=0)
             }
 
             for (auto hit : index.match2(s1, sdsl::incremental_wildcard_pattern(s2, min_gap, max_gap))) {

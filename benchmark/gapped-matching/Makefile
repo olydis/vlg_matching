@@ -1,4 +1,5 @@
 include ../Make.helper
+include ../Make.download
 CXX_FLAGS = $(MY_CXX_FLAGS) # in compile_options.config
 LIBS = -lsdsl 
 SRC_DIR = src
@@ -6,8 +7,8 @@ TMP_DIR = ../tmp
 
 .SECONDARY:
 
-TC_IDS:=$(call config_ids,test_case.config)
-UNIQUE_SP_LENGTHS:=$(shell echo $(call config_column,test_case.config,2) | tr " " "\n" | uniq | tr "\n" " ")
+TC_IDS:=$(call config_ids,patterns.config)
+UNIQUE_SP_LENGTHS:=$(shell echo $(call config_column,patterns.config,2) | tr " " "\n" | uniq | tr "\n" " ")
 
 COLL_ID = sources-1048576
 
@@ -53,8 +54,8 @@ collections/%.words.txt:
 collections/%.regex.txt: $(GM_WORDS)
 	$(eval COLL_ID:=$(call dim,1,$*))
 	$(eval TC_ID:=$(call dim,2,$*))
-	$(eval SP_LENGTH:=$(call config_select,test_case.config,$(TC_ID),2))
-	$(eval GAP:=$(call config_select,test_case.config,$(TC_ID),3))
+	$(eval SP_LENGTH:=$(call config_select,patterns.config,$(TC_ID),2))
+	$(eval GAP:=$(call config_select,patterns.config,$(TC_ID),3))
 	@echo "$(TC_ID)"
 	@echo "Creating regex patterns with words of length $(SP_LENGTH) from $(COLL_ID) and a gap of $(GAP)..."
 	@sed 'N;s/\n/.{$(GAP)}/' collections/$(COLL_ID).$(SP_LENGTH).words.txt > $@
