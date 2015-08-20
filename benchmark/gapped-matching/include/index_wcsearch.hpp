@@ -66,7 +66,7 @@ class index_wcsearch
             }
 
             for (auto hit : index.match2(s1, sdsl::incremental_wildcard_pattern(s2, min_gap, max_gap))) {
-                res.positions.push_back(hit.first - 1);
+                res.positions.push_back(hit.first);
             }
             return res;
         }
