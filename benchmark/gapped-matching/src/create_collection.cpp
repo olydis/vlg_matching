@@ -77,7 +77,7 @@ int main(int argc, const char* argv[])
     }
     {
         for (size_t i=0; i<buf.size(); ++i) {
-            if (buf[i] == '\n' or buf[i] == '\r')
+            if (buf[i] == '\n' or buf[i] == '\r' or buf[i] == '\f')
                 buf[i] = ' ';
         }
         gm_timer tm("BIT COMPRESS",true);
