@@ -80,6 +80,7 @@ collections/%.regex.txt: $(GM_WORDS)
 	@sed 'N;s/\n/.{$(GAP)}/' collections/$(TC_ID)/patterns/words.$(TC_ID).$(SP_LENGTH).words.txt > $@
 
 build/%:
+	@mkdir -p build
 	cd build && cmake .. && make -j 2
 
 clean-build:
