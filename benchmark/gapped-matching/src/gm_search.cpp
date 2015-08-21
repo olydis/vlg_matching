@@ -60,7 +60,7 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     for (const auto& pat : patterns) {
         // give index a chance to output relevant 
         // information about the upcoming query
-        total_info += " " + idx.info(pat);
+        total_info += "," + idx.info(pat);
         
         // let index perform text-INDEPENDENT work
         gm_timer tm_prep("PAT_PREP");

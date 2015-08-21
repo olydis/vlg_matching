@@ -50,38 +50,54 @@ plot_gm_query_times <- function( data, title=""){
             lty=algo_config[ALGO_IDs,"LTY"], bty="n", y.intersp=1.5, ncol=2, title="Algorithm", cex=1.2)
 }
 
+get_sa_range_for <- function(data, coll, pattern_id) {
+  d <- data[data$PATT_SAMPLE==pattern_id,]
+  numbers <- as.numeric(unlist(strsplit(paste(d[["info"]]),",")))
+  numbers <- numbers[!is.na(numbers)]
+  return(sum(numbers));
+}
+
 create_table_for <- function(data, coll, algo) {
   d <- data[data$ALGO==algo,]
   cat("Table: ",coll, " ", algo,"\n")
   # layout: rows=patterns, cols=values of interest
 
+  PATT_IDs <- unique(d$PATT_SAMPLE)
   fig_name <- paste("fig-gm-time-",coll,"-",algo,"-table.tex",sep="")
   sink(fig_name)
-  cat("\\begin{tabular}{l|*{", nrow(raw), "}{r}}\n", sep="")
+  cat("\\begin{tabular}{|l|", paste(rep("r", length(PATT_IDs)), sep=" "), "|}\n", sep="")
   cat("\\hline\n")
 
-  PATT_IDs <- unique(d$PATT_SAMPLE)
-  table = paste("Pattern-length: ", pattern_config[PATT_IDs,"SP-LEN"], 
-            ", gap: {",pattern_config[PATT_IDs,"GAP"],"}", sep="")
-  
-  sink(NULL)
-  cat(table)
-  sink(fig_name)
-  
-  table = paste(table, c(
-      paste("Pattern-length: ", pattern_config[patt_id,"SP-LEN"], 
-            ", gap: {",pattern_config[patt_id,"GAP"],"}", sep=""),
-      d[["mean_time_ms"]]
-  ), sep=" & ")
+  table = c("pattern",
+            "phrase length",
+            "gap size",
+            "mean time ($ms$)",
+            "SA range (\\#potential matches)",
+            "mean time per potential match ($\\mu s$)")
+            
+  for(patt_id in PATT_IDs){
+    dd <- d[d$PATT_SAMPLE==patt_id,]
+    sa_range <- get_sa_range_for(data,coll,patt_id)
+    table = paste(table, 
+             c(patt_id,
+               pattern_config[patt_id,"SP-LEN"],
+               pattern_config[patt_id,"GAP"],
+               paste("$", dd[["mean_time_ms"]], "$", sep=""),
+               paste("$", sa_range, "$", sep=""),
+               paste("$", sprintf("%.3f",1000 * dd[["mean_time_ms"]] / sa_range), "$", sep="")
+             ), sep=" & ")
+  }
 
   cat(table, "\\hline", sep="\\\\\n")
   cat("\\end{tabular}\n")
   sink(NULL)
-  tex_doc <- paste(tex_doc,"\\begin{figure}
-               \\input{",fig_name,"}
-               \\caption{Query time on \\texttt{",coll,"} depending on gap size.
-               }
-              \\end{figure}")
+  
+  cat(table)
+  
+  return(paste("\\begin{figure}
+                \\input{",fig_name,"}
+                \\caption{Query times of algorithm \\texttt{",algo_config[algo,"LATEX-NAME"],"} on \\texttt{",coll,"}.}
+                \\end{figure}", sep=""))
 }
 
 data <- data_frame_from_key_value_pairs( "../results/all.txt" )
@@ -90,11 +106,12 @@ tex_doc <- paste(readLines("gm-header.tex"),collapse="\n")
 colls <- unique(data$COLL_ID)
 n <- length(colls)
 for(coll in colls){
+  coll_name <- 
+  
   # Graph for total query time
   fig_name <- paste("fig-gm-time-",coll,".tex",sep="")
   open_tikz( fig_name )
 
-  par(mfrow=c(1,1))
   multi_figure_style( 1, 1 )  
 
   d <- data[data$COLL_ID==coll,]
@@ -109,7 +126,7 @@ for(coll in colls){
   # tables for mean query times and result numbers
   ALGO_IDs <- unique(d$ALGO)
   for(algo in ALGO_IDs){
-    create_table_for(d, coll, algo)
+    tex_doc <- paste(tex_doc,create_table_for(d, coll, algo))
   }
 }
 
