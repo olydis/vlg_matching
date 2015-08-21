@@ -36,6 +36,7 @@ class index_qgram_regexp
             return "QGRAM-"+std::to_string(q)+"-"+index_name;
         }
     protected:
+        std::regex rx;
         text_type m_text;
         std::unordered_map<uint64_t,uint64_t> m_qgram_lists;
         sdsl::bit_vector m_list_data;
@@ -128,13 +129,20 @@ class index_qgram_regexp
             return qids;
         }
 
+        void info(const gapped_pattern& pat) const { (void)pat; }
+
+        void prepare(const gapped_pattern& pat) 
+        { 
+            /* (1) construct regexp */
+            rx = std::regex(pat.raw_regexp.begin(),pat.raw_regexp.end(),REGEXP_TYPE);
+        }
+
         //! Search for the k documents which contain the search term most frequent
         gapped_search_result
         search(const gapped_pattern& pat) const
         {
             std::cout << "search(" << pat.raw_regexp << ")" << std::endl;
             gapped_search_result res;
-            std::regex rx(pat.raw_regexp.begin(),pat.raw_regexp.end(),REGEXP_TYPE);
 
             if (pat.subpatterns.size() == 1) {
                 // actually not a gapped pattern. SLOW FOR NOW!

@@ -18,6 +18,7 @@ class index_regexp
             return "REGEXP-"+index_name;
         }
     protected:
+        std::regex rx;
         text_type m_text;
     public:
         index_regexp() { }
@@ -45,12 +46,19 @@ class index_regexp
             }
         }
 
+        void info(const gapped_pattern& pat) const { (void)pat; }
+
+        void prepare(const gapped_pattern& pat) 
+        { 
+            /* (1) construct regexp */
+            rx = std::regex(pat.raw_regexp.begin(),pat.raw_regexp.end(),REGEXP_TYPE);
+        }
+
         //! Search for the k documents which contain the search term most frequent
         gapped_search_result
         search(const gapped_pattern& pat) const
         {
-            /* (1) construct regexp */
-            std::regex rx(pat.raw_regexp.begin(),pat.raw_regexp.end(),REGEXP_TYPE);
+            (void)pat;
 
             /* (2) find all matching pos */
             auto matches_begin = std::sregex_iterator(m_text.begin(),m_text.end(),rx);

@@ -47,6 +47,9 @@ class index_dbsearch
             }
         }
 
+        void info(const gapped_pattern& pat) const { (void)pat; }
+        void prepare(const gapped_pattern& pat) { (void)pat; }
+
         gapped_search_result
         search(const gapped_pattern& pat) const
         {

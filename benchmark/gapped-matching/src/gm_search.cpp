@@ -54,8 +54,20 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     size_t num_results = 0;
     size_t checksum = 0;
     size_t npat = 1;
+    timing_results t_prep;
     timing_results t;
     for (const auto& pat : patterns) {
+        // give index a chance to output relevant 
+        // information about the upcoming query
+        idx.info(pat);
+        
+        // let index perform text-INDEPENDENT work
+        gm_timer tm_prep("PAT_PREP");
+        idx.prepare(pat);
+        auto dur_prep = tm_prep.elapsed();
+        t_prep.add_timing(dur_prep);
+        
+        // perform search
         gm_timer tm("PAT_SEARCH");
         auto res = idx.search(pat);
         auto dur = tm.elapsed();
@@ -68,16 +80,21 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
             num_results++;
         }
 
+        auto time_ms_prep = duration_cast<milliseconds>(dur_prep);
         auto time_ms = duration_cast<milliseconds>(dur);
         LOG(INFO) << " NPAT=" << npat++ << " NPOS=" << res.positions.size()
+                  << " TIME_MS_PREP=" << time_ms_prep.count()
                   << " TIME_MS=" << time_ms.count() << "  P='"<<pat.raw_regexp<<"'";
     }
 
     /* output stats */
     auto ts = t.summary();
+    auto ts_prep = t_prep.summary();
+    
     LOG(INFO) << "SUMMARY";
     LOG(INFO) << " num_patterns = " << t.timings.size();
     LOG(INFO) << " checksum = " << checksum;
+    
     LOG(INFO) << " total_time_ms = " << duration_cast<milliseconds>(ts.total).count();
     LOG(INFO) << " min_time_ms = " << duration_cast<milliseconds>(ts.min).count();
     LOG(INFO) << " qrt_1st_time_ms = " << duration_cast<milliseconds>(ts.qrt_1st).count();
@@ -95,6 +112,14 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     std::cout << "# median_time_ms = " << duration_cast<milliseconds>(ts.median).count() << std::endl;
     std::cout << "# qrt_3rd_time_ms = " << duration_cast<milliseconds>(ts.qrt_3rd).count() << std::endl;
     std::cout << "# max_time_ms = " << duration_cast<milliseconds>(ts.max).count() << std::endl;
+    
+    std::cout << "# prep_total_time_ms = " << duration_cast<milliseconds>(ts_prep.total).count() << std::endl;
+    std::cout << "# prep_min_time_ms = " << duration_cast<milliseconds>(ts_prep.min).count() << std::endl;
+    std::cout << "# prep_qrt_1st_time_ms = " << duration_cast<milliseconds>(ts_prep.qrt_1st).count() << std::endl;
+    std::cout << "# prep_mean_time_ms = " << duration_cast<milliseconds>(ts_prep.mean).count() << std::endl;
+    std::cout << "# prep_median_time_ms = " << duration_cast<milliseconds>(ts_prep.median).count() << std::endl;
+    std::cout << "# prep_qrt_3rd_time_ms = " << duration_cast<milliseconds>(ts_prep.qrt_3rd).count() << std::endl;
+    std::cout << "# prep_max_time_ms = " << duration_cast<milliseconds>(ts_prep.max).count() << std::endl;
 }
 
 int main(int argc, const char* argv[])

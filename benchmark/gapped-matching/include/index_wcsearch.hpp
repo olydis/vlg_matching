@@ -45,6 +45,21 @@ class index_wcsearch
             }
         }
 
+        void info(const gapped_pattern& pat) const 
+        {
+            // output SA-ranges (gives a good estimation about potential matches)
+            sdsl::matching_index<>::size_type total_range = 0, sp = 0, ep = 0;
+
+            std::string s1;
+            std::string s2;
+
+            for (size_t i = 0; i < pat.subpatterns.size(); ++i)
+                total_range += backward_search(index.csa, 0, index.csa.size()-1, pat.subpatterns[i].begin(), pat.subpatterns[i].end(), sp, ep);
+
+            std::cout << "# total_sa_range = " << total_range << std::endl;
+        }
+        void prepare(const gapped_pattern& pat) { (void)pat; }
+
         gapped_search_result
         search(const gapped_pattern& pat) const
         {
