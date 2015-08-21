@@ -43,7 +43,7 @@ class index_wcsearch_bfs
             }
         }
 
-        void info(const gapped_pattern& pat) const { (void)pat; }
+        std::string info(const gapped_pattern& pat) const { (void)pat; return ""; }
 
         void prepare(const gapped_pattern& pat) { (void)pat; }
 

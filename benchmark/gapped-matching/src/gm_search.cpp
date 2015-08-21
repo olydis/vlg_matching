@@ -56,10 +56,11 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     size_t npat = 1;
     timing_results t_prep;
     timing_results t;
+    string total_info = "";
     for (const auto& pat : patterns) {
         // give index a chance to output relevant 
         // information about the upcoming query
-        idx.info(pat);
+        total_info += " " + idx.info(pat);
         
         // let index perform text-INDEPENDENT work
         gm_timer tm_prep("PAT_PREP");
@@ -102,6 +103,8 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     LOG(INFO) << " median_time_ms = " << duration_cast<milliseconds>(ts.median).count();
     LOG(INFO) << " qrt_3rd_time_ms = " << duration_cast<milliseconds>(ts.qrt_3rd).count();
     LOG(INFO) << " max_time_ms = " << duration_cast<milliseconds>(ts.max).count();
+
+    std::cout << "# info =" << total_info << std::endl;
 
     std::cout << "# num_results = " << num_results << std::endl;
     std::cout << "# checksum = " << checksum << std::endl;

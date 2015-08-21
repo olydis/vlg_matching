@@ -129,7 +129,7 @@ class index_qgram_regexp
             return qids;
         }
 
-        void info(const gapped_pattern& pat) const { (void)pat; }
+        std::string info(const gapped_pattern& pat) const { (void)pat; return ""; }
 
         void prepare(const gapped_pattern& pat) 
         { 

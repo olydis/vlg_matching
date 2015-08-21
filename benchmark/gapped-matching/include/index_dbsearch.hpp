@@ -47,7 +47,7 @@ class index_dbsearch
             }
         }
 
-        void info(const gapped_pattern& pat) const { (void)pat; }
+        std::string info(const gapped_pattern& pat) const { (void)pat; return ""; }
         void prepare(const gapped_pattern& pat) { (void)pat; }
 
         gapped_search_result
