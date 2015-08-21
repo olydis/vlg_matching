@@ -459,7 +459,6 @@ void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, 
     {
         auto event = memory_monitor::event("dbs");
         bit_vector dbs(text_buffer.size(), 0);
-        std::cout << "dat size:" << dbs.size() << std::endl;
         for (size_t i = 0; i < dbs.size(); i++)
             dbs[i] = text_buffer[i] == '\n';
 
