@@ -63,36 +63,35 @@ create_table_for <- function(data, coll, algo) {
   # layout: rows=patterns, cols=values of interest
 
   PATT_IDs <- unique(d$PATT_SAMPLE)
+  ROWS <- unique(pattern_config[PATT_IDs,"SP-LEN"])
+  COLS <- unique(pattern_config[PATT_IDs,"GAP"])
+
   fig_name <- paste("fig-gm-time-",coll,"-",algo,"-table.tex",sep="")
   sink(fig_name)
-  cat("\\begin{tabular}{|l|", paste(rep("r", length(PATT_IDs)), sep=" "), "|}\n", sep="")
+  cat("\\begin{center}")
+  cat("\\begin{tabular}{|r|", rep("r|", length(COLS)), "}\n", sep="")
   cat("\\hline\n")
 
-  table = c("pattern",
-            "phrase length",
-            "gap size",
-            "mean time ($ms$)",
-            "SA range (\\#potential matches)",
-            "mean time per potential match ($\\mu s$)")
+  table = c("",ROWS)
             
-  for(patt_id in PATT_IDs){
-    dd <- d[d$PATT_SAMPLE==patt_id,]
-    sa_range <- get_sa_range_for(data,coll,patt_id)
+  for(col in COLS){
+    cfg_for_col <- pattern_config[pattern_config$GAP==col,]
+    pids <- sapply(ROWS, function(row) { cfg_for_col[cfg_for_col$"SP-LEN"==row,][["TC_ID"]] })
+
     table = paste(table, 
-             c(patt_id,
-               pattern_config[patt_id,"SP-LEN"],
-               pattern_config[patt_id,"GAP"],
-               paste("$", dd[["mean_time_ms"]], "$", sep=""),
-               paste("$", sa_range, "$", sep=""),
-               paste("$", sprintf("%.3f",1000 * dd[["mean_time_ms"]] / sa_range), "$", sep="")
-             ), sep=" & ")
+             c(col,sapply(pids, function(patt_id)
+                {
+                    dd <- d[d$PATT_SAMPLE==patt_id,]
+                    sa_range <- get_sa_range_for(data,coll,patt_id)
+                    time <- dd[["mean_time_ms"]]
+                    return(paste("$", 1000*time, "\\mu s$/$",sprintf("%.3f",1000*time/sa_range),"\\mu s$", sep=""))
+                })), sep=" & ")
   }
 
-  cat(table, "\\hline", sep="\\\\\n")
+  cat(table, "", sep="\\\\\\hline\n")
   cat("\\end{tabular}\n")
+  cat("\\end{center}")
   sink(NULL)
-  
-  cat(table)
   
   return(paste("\\begin{figure}
                 \\input{",fig_name,"}

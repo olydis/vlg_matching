@@ -41,12 +41,12 @@ collections/%/text.TEXT: execs $(UNIQUE_DATA_FILES)
 	@build/create_collection.x -i $(SOURCE_FILE) -c collections/$(TC_ID)
 	$(if $(findstring -,$(PREFIX_BYTES)), , @rm $(TEMP_DATA_FILE))
 
-timing: execs $(RES_FILES) 
+timing: $(RES_FILES)
 	cat $(RES_FILES) > $(RES_FILE)
 	@cd visualize; make	
 
 # Format: results/[ALGO].[PATTERN_ID].[TC_ID]
-results/%: $(TC_COLLECTIONS) $(GM_PATTERNS)
+results/%: $(GM_EXECS) $(TC_COLLECTIONS) $(GM_PATTERNS)
 	@mkdir -p results
 	$(eval ALGO:=$(call dim,1,$*))
 	$(eval PATTERN_ID:=$(call dim,2,$*))
