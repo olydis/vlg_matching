@@ -79,7 +79,7 @@ create_table_for <- function(data, coll, algo) {
     pids <- sapply(ROWS, function(row) { cfg_for_col[cfg_for_col$"SP-LEN"==row,][["TC_ID"]] })
 
     table = paste(table, 
-             c(col,sapply(pids, function(patt_id)
+             c(gsub(",","--",col),sapply(pids, function(patt_id)
                 {
                     dd <- d[d$PATT_SAMPLE==patt_id,]
                     sa_range <- get_sa_range_for(data,coll,patt_id)
