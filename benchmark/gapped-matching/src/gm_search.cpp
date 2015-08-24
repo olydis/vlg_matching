@@ -81,11 +81,11 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
             num_results++;
         }
 
-        auto time_ms_prep = duration_cast<milliseconds>(dur_prep);
-        auto time_ms = duration_cast<milliseconds>(dur);
+        auto time_mus_prep = duration_cast<microseconds>(dur_prep);
+        auto time_mus = duration_cast<microseconds>(dur);
         LOG(INFO) << " NPAT=" << npat++ << " NPOS=" << res.positions.size()
-                  << " TIME_MS_PREP=" << time_ms_prep.count()
-                  << " TIME_MS=" << time_ms.count() << "  P='"<<pat.raw_regexp<<"'";
+                  << " TIME_MS_PREP=" << time_mus_prep.count()
+                  << " TIME_MS=" << time_mus.count() << "  P='"<<pat.raw_regexp<<"'";
     }
 
     /* output stats */
@@ -96,33 +96,33 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     LOG(INFO) << " num_patterns = " << t.timings.size();
     LOG(INFO) << " checksum = " << checksum;
     
-    LOG(INFO) << " total_time_ms = " << duration_cast<milliseconds>(ts.total).count();
-    LOG(INFO) << " min_time_ms = " << duration_cast<milliseconds>(ts.min).count();
-    LOG(INFO) << " qrt_1st_time_ms = " << duration_cast<milliseconds>(ts.qrt_1st).count();
-    LOG(INFO) << " mean_time_ms = " << duration_cast<milliseconds>(ts.mean).count();
-    LOG(INFO) << " median_time_ms = " << duration_cast<milliseconds>(ts.median).count();
-    LOG(INFO) << " qrt_3rd_time_ms = " << duration_cast<milliseconds>(ts.qrt_3rd).count();
-    LOG(INFO) << " max_time_ms = " << duration_cast<milliseconds>(ts.max).count();
+    LOG(INFO) << " total_time_mus = " << duration_cast<microseconds>(ts.total).count();
+    LOG(INFO) << " min_time_mus = " << duration_cast<microseconds>(ts.min).count();
+    LOG(INFO) << " qrt_1st_time_mus = " << duration_cast<microseconds>(ts.qrt_1st).count();
+    LOG(INFO) << " mean_time_mus = " << duration_cast<microseconds>(ts.mean).count();
+    LOG(INFO) << " median_time_mus = " << duration_cast<microseconds>(ts.median).count();
+    LOG(INFO) << " qrt_3rd_time_mus = " << duration_cast<microseconds>(ts.qrt_3rd).count();
+    LOG(INFO) << " max_time_mus = " << duration_cast<microseconds>(ts.max).count();
 
     std::cout << "# info =" << total_info << std::endl;
 
     std::cout << "# num_results = " << num_results << std::endl;
     std::cout << "# checksum = " << checksum << std::endl;
-    std::cout << "# total_time_ms = " << duration_cast<milliseconds>(ts.total).count() << std::endl;
-    std::cout << "# min_time_ms = " << duration_cast<milliseconds>(ts.min).count() << std::endl;
-    std::cout << "# qrt_1st_time_ms = " << duration_cast<milliseconds>(ts.qrt_1st).count() << std::endl;
-    std::cout << "# mean_time_ms = " << duration_cast<milliseconds>(ts.mean).count() << std::endl;
-    std::cout << "# median_time_ms = " << duration_cast<milliseconds>(ts.median).count() << std::endl;
-    std::cout << "# qrt_3rd_time_ms = " << duration_cast<milliseconds>(ts.qrt_3rd).count() << std::endl;
-    std::cout << "# max_time_ms = " << duration_cast<milliseconds>(ts.max).count() << std::endl;
+    std::cout << "# total_time_mus = " << duration_cast<microseconds>(ts.total).count() << std::endl;
+    std::cout << "# min_time_mus = " << duration_cast<microseconds>(ts.min).count() << std::endl;
+    std::cout << "# qrt_1st_time_mus = " << duration_cast<microseconds>(ts.qrt_1st).count() << std::endl;
+    std::cout << "# mean_time_mus = " << duration_cast<microseconds>(ts.mean).count() << std::endl;
+    std::cout << "# median_time_mus = " << duration_cast<microseconds>(ts.median).count() << std::endl;
+    std::cout << "# qrt_3rd_time_mus = " << duration_cast<microseconds>(ts.qrt_3rd).count() << std::endl;
+    std::cout << "# max_time_mus = " << duration_cast<microseconds>(ts.max).count() << std::endl;
     
-    std::cout << "# prep_total_time_ms = " << duration_cast<milliseconds>(ts_prep.total).count() << std::endl;
-    std::cout << "# prep_min_time_ms = " << duration_cast<milliseconds>(ts_prep.min).count() << std::endl;
-    std::cout << "# prep_qrt_1st_time_ms = " << duration_cast<milliseconds>(ts_prep.qrt_1st).count() << std::endl;
-    std::cout << "# prep_mean_time_ms = " << duration_cast<milliseconds>(ts_prep.mean).count() << std::endl;
-    std::cout << "# prep_median_time_ms = " << duration_cast<milliseconds>(ts_prep.median).count() << std::endl;
-    std::cout << "# prep_qrt_3rd_time_ms = " << duration_cast<milliseconds>(ts_prep.qrt_3rd).count() << std::endl;
-    std::cout << "# prep_max_time_ms = " << duration_cast<milliseconds>(ts_prep.max).count() << std::endl;
+    std::cout << "# prep_total_time_mus = " << duration_cast<microseconds>(ts_prep.total).count() << std::endl;
+    std::cout << "# prep_min_time_mus = " << duration_cast<microseconds>(ts_prep.min).count() << std::endl;
+    std::cout << "# prep_qrt_1st_time_mus = " << duration_cast<microseconds>(ts_prep.qrt_1st).count() << std::endl;
+    std::cout << "# prep_mean_time_mus = " << duration_cast<microseconds>(ts_prep.mean).count() << std::endl;
+    std::cout << "# prep_median_time_mus = " << duration_cast<microseconds>(ts_prep.median).count() << std::endl;
+    std::cout << "# prep_qrt_3rd_time_mus = " << duration_cast<microseconds>(ts_prep.qrt_3rd).count() << std::endl;
+    std::cout << "# prep_max_time_mus = " << duration_cast<microseconds>(ts_prep.max).count() << std::endl;
 }
 
 int main(int argc, const char* argv[])

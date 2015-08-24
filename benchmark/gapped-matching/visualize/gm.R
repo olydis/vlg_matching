@@ -14,11 +14,11 @@ open_tikz <- function( file_name  ){
 # Method which plots the query time figure
 plot_gm_query_times <- function( data, title=""){
   cat("Graph: ",title,"\n")
-  #data <- aggregate(data[c('total_time_ms')], by=c(data['PATT_SAMPLE']), FUN=min)
-  #data[c('total_time_ms')] <- data[c('total_time_ms')]/1000.0
+  #data <- aggregate(data[c('total_time_mus')], by=c(data['PATT_SAMPLE']), FUN=min)
+  #data[c('total_time_mus')] <- data[c('total_time_mus')]/1000.0
   #data <- data[order(data[['PATT_SAMPLE']]), ]
 
-  runtime <- data[['total_time_ms']] # / data[['num_results']]
+  runtime <- data[['total_time_mus']] # / data[['num_results']]
   max_runtime <- max(runtime[!is.infinite(runtime) & !is.nan(runtime)])
   max_sample <- length(unique(data[['PATT_SAMPLE']]))
 
@@ -28,7 +28,7 @@ plot_gm_query_times <- function( data, title=""){
   ALGO_IDs <- unique(data$ALGO)
   for(algo in ALGO_IDs){
     d <- data[data$ALGO==algo,]
-    lines(d[['PATT_SAMPLE']], d[['total_time_ms']] # / d[['num_results']]
+    lines(d[['PATT_SAMPLE']], d[['total_time_mus']] # / d[['num_results']]
           ,lwd=1, type="b", 
           pch=algo_config[algo,"PCH"], 
           lty=algo_config[algo,"LTY"],
@@ -83,8 +83,8 @@ create_table_for <- function(data, coll, algo) {
                 {
                     dd <- d[d$PATT_SAMPLE==patt_id,]
                     sa_range <- get_sa_range_for(data,coll,patt_id)
-                    time <- dd[["mean_time_ms"]]
-                    return(paste("$", 1000*time, "\\mu s$/$",sprintf("%.3f",1000*time/sa_range),"\\mu s$", sep=""))
+                    time <- dd[["mean_time_mus"]]
+                    return(paste("$", sprintf("%.3f",time), "\\mu s$/$",sprintf("%.3f",time/sa_range),"\\mu s$", sep=""))
                 })), sep=" & ")
   }
 
