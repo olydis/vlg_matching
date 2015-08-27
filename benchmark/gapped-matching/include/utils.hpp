@@ -17,7 +17,7 @@
 struct gapped_pattern {
     std::string raw_regexp;
     sdsl::int_vector<0> sdsl_regexp;
-    std::vector<std::string> subpatterns;
+    std::vector<std::string> subpatterns; // TODO: replace string by vector<uint64_t>
     std::vector<std::string> gap_strs;
     std::vector<std::pair<uint64_t,uint64_t>> gaps;
     gapped_pattern(const std::string& p) : raw_regexp(p)

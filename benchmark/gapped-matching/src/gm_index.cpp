@@ -40,6 +40,7 @@ template <class t_idx> void create_and_store(collection& col)
     using clock = std::chrono::high_resolution_clock;
     auto start = clock::now();
     t_idx idx(col);
+
     auto stop = clock::now();
     LOG(INFO) << "index construction in (s): "
               << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count()

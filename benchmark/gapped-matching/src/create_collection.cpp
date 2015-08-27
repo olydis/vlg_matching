@@ -19,6 +19,7 @@ void print_usage(const char* program)
     fprintf(stdout, "where\n");
     fprintf(stdout, "  -i <input file>      : the input file.\n");
     fprintf(stdout, "  -c <collection dir>  : the collection dir.\n");
+    // TODO: option for integer alphabet
 };
 
 cmdargs_t parse_args(int argc, const char* argv[])
@@ -50,12 +51,6 @@ int main(int argc, const char* argv[])
     log::start_log(argc, argv);
     cmdargs_t args = parse_args(argc, argv);
 
-    /* (0) check if input file exists */
-    std::ifstream ifs(args.input_file,std::ios::binary);
-    if (!ifs) {
-        LOG(FATAL) << "Error opening input file '" << args.input_file << "'";
-    }
-    ifs >> std::noskipws; // dont skip white spaces!
 
     /* (1) create collection dir */
     LOG(INFO) << "Creating collection directory structure in '" << args.collection_dir << "'";
@@ -67,26 +62,36 @@ int main(int argc, const char* argv[])
     utils::create_directory(args.collection_dir+"/patterns");
     utils::create_directory(args.collection_dir+"/results");
 
-    /* (3) copy file to sdsl format */
-    auto buf = sdsl::write_out_buffer<0>::create(args.collection_dir+"/"+ consts::KEY_PREFIX + consts::KEY_TEXT);
+    // TODO: handle integer input , load_vector_from_file :)
     {
-        gm_timer tm("COPY TO SDSL FORMAT",true);
-        std::copy(std::istream_iterator<uint8_t>(ifs),
-                  std::istream_iterator<uint8_t>(),
-                  std::back_inserter(buf));
-    }
-    {
-        for (size_t i=0; i<buf.size(); ++i) {
-            if (buf[i] == '\n' or buf[i] == '\r' or buf[i] == '\f')
-                buf[i] = ' ';
+        /* (3) check if input file exists */
+        std::ifstream ifs(args.input_file,std::ios::binary);
+        if (!ifs) {
+            LOG(FATAL) << "Error opening input file '" << args.input_file << "'";
         }
-        gm_timer tm("BIT COMPRESS",true);
-        sdsl::util::bit_compress(buf);
-    }
+        ifs >> std::noskipws; // dont skip white spaces!
 
-    LOG(INFO) << "num_syms = " << buf.size();
-    LOG(INFO) << "log2(sigma) = " << (int) buf.width();
-    LOG(INFO) << "text size = " << (buf.width()*buf.size())/(8*1024*1024) << " MiB";
+        /* (4) copy file to sdsl format */
+        auto buf = sdsl::write_out_buffer<0>::create(args.collection_dir+"/"+ consts::KEY_PREFIX + consts::KEY_TEXT);
+        {
+            gm_timer tm("COPY TO SDSL FORMAT",true);
+            std::copy(std::istream_iterator<uint8_t>(ifs),
+                      std::istream_iterator<uint8_t>(),
+                      std::back_inserter(buf));
+        }
+        {
+            for (size_t i=0; i<buf.size(); ++i) {
+                if (buf[i] == '\n' or buf[i] == '\r' or buf[i] == '\f')
+                    buf[i] = ' ';
+            }
+            gm_timer tm("BIT COMPRESS",true);
+            sdsl::util::bit_compress(buf);
+        }
+
+        LOG(INFO) << "num_syms = " << buf.size();
+        LOG(INFO) << "log2(sigma) = " << (int) buf.width();
+        LOG(INFO) << "text size = " << (buf.width()*buf.size())/(8*1024*1024) << " MiB";
+    }
 
     return EXIT_SUCCESS;
 }

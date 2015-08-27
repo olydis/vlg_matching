@@ -11,6 +11,7 @@ int main(int argc, char** argv)
         cout << " - file:       The data to extract the patterns from" << endl;
         cout << " - count:      Number of patterns to extract" << endl;
         cout << " - length:     Minimum length of patterns to extract" << endl;
+        // TODO parameter for numbytes
         cout << " - charset:" << endl;
         cout << "   - 0 = alpha-numerical only (default)" << endl;
         cout << "   - 1 = alpha-numerical with whitespace" << endl;
@@ -38,11 +39,14 @@ int main(int argc, char** argv)
 
     // load (cached) CST
     string cst_file = file + ".sdsl";
+    // TODO: csa_int for integer intput
     cst_sct3<> cst;
     if (!load_from_file(cst, cst_file)) {
         construct(cst, file, 0);
         store_to_file(cst, cst_file);
     }
+
+    // TODO: write whitespace separaterd integer for num_bytes!=0
 
     // traverse
     size_t size = cst.size();
