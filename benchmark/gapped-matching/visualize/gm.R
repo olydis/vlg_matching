@@ -127,6 +127,8 @@ for(coll in colls){
   for(algo in ALGO_IDs){
     tex_doc <- paste(tex_doc,create_table_for(d, coll, algo))
   }
+
+  tex_doc <- paste(tex_doc,"\\clearpage")
 }
 
 tex_doc <- paste(tex_doc, readLines("gm-footer.tex"),collapse="\n")
