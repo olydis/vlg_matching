@@ -32,11 +32,12 @@ execs: $(GM_EXECS)
 collections/%/text.TEXT: execs $(UNIQUE_DATA_FILES)
 	$(eval TC_ID:=$(call dim,1,$*))
 	$(eval SOURCE_FILE:=$(call config_select,test_case.config,$(TC_ID),2))
+	$(eval NUM_BYTES:=$(call config_select,test_case.config,$(TC_ID),5))
 	$(eval PREFIX_BYTES:=$(call config_select,test_case.config,$(TC_ID),6))
 	@echo "Creating collection $(TC_ID) from file $(SOURCE_FILE)"
 	$(if $(findstring -,$(PREFIX_BYTES)), , @head -c $(PREFIX_BYTES) $(SOURCE_FILE) > $(TEMP_DATA_FILE))
 	$(if $(findstring -,$(PREFIX_BYTES)), , $(eval SOURCE_FILE:=$(TEMP_DATA_FILE)))
-	@build/create_collection.x -i $(SOURCE_FILE) -c collections/$(TC_ID)
+	@build/create_collection.x -i $(SOURCE_FILE) -n $(NUM_BYTES) -c collections/$(TC_ID)
 	$(if $(findstring -,$(PREFIX_BYTES)), , @rm $(TEMP_DATA_FILE))
 
 timing: $(RES_FILES)
