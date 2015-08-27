@@ -79,7 +79,7 @@ create_table_for <- function(data, coll, algo) {
     pids <- sapply(ROWS, function(row) { cfg_for_col[cfg_for_col$"SP-LEN"==row,][["TC_ID"]] })
 
     table = paste(table, 
-             c(col,sapply(pids, function(patt_id)
+             c(gsub(",","--",col),sapply(pids, function(patt_id)
                 {
                     dd <- d[d$PATT_SAMPLE==patt_id,]
                     sa_range <- get_sa_range_for(data,coll,patt_id)
@@ -127,6 +127,8 @@ for(coll in colls){
   for(algo in ALGO_IDs){
     tex_doc <- paste(tex_doc,create_table_for(d, coll, algo))
   }
+
+  tex_doc <- paste(tex_doc,"\\clearpage")
 }
 
 tex_doc <- paste(tex_doc, readLines("gm-footer.tex"),collapse="\n")
