@@ -52,10 +52,9 @@ results/%: $(GM_EXECS) $(TC_COLLECTIONS) $(GM_PATTERNS)
 	@echo "# COLL_ID = $(TC_ID)" > $@
 	@echo "# PATT_SAMPLE = $(PATTERN_ID)" >> $@
 	@echo "# ALGO = $(ALGO)" >> $@
-	$(eval SENTINEL:="collections/$(TC_ID).$(call dim,1,$*).sentinel")
+	$(eval SENTINEL:="collections/$(TC_ID).$(ALGO).sentinel")
 	@test -e $(SENTINEL) || { echo "Running build/gm_index-$(ALGO).x -c collections/$(TC_ID)"; ./build/gm_index-$(ALGO).x -c collections/$(TC_ID); touch $(SENTINEL); }
-	@echo "Running build/gm_search-$(ALGO).x -c collections/$(TC_ID) -p collections/$(TC_ID)/patterns/regex.$(TC_ID).$(PATTERN_ID).txt"
-	@build/gm_search-$(ALGO).x -c collections/$(TC_ID) -p collections/$(TC_ID)/patterns/regex.$(TC_ID).$(PATTERN_ID).regex.txt >> $@
+	build/gm_search-$(ALGO).x -c collections/$(TC_ID) -p collections/$(TC_ID)/patterns/regex.$(TC_ID).$(PATTERN_ID).regex.txt >> $@
 
 ../../examples/generate-pattern.x:
 	@cd ../../examples; make generate-pattern.x
