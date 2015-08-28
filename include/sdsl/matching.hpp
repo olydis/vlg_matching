@@ -43,28 +43,6 @@ namespace sdsl
 template<class t_csa, class t_wt, class t_bv>
 class matching_index;
 
-struct incremental_wildcard_pattern {
-    const string pattern;
-    const size_t min_gap;
-    const size_t max_gap;
-
-    incremental_wildcard_pattern() :
-        pattern(""),
-        min_gap(0),
-        max_gap(0)
-    { }
-
-    incremental_wildcard_pattern(
-        const string pattern,
-        const size_t min_gap,
-        const size_t max_gap) :
-        pattern(pattern),
-        min_gap(min_gap),
-        max_gap(max_gap)
-    {
-    }
-};
-
 // TODO: think about more general way
 template<class t_iter>
 class matching_container
@@ -198,7 +176,7 @@ class wavelet_tree_range_walker
         }
 };
 
-template<class type_index>
+template<class type_index, class t_rac>
 class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag, pair<typename type_index::size_type, typename type_index::size_type>>
 {
     private:
@@ -213,7 +191,9 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
         size_t a = 0;
         size_t b = 0;
 
-        incremental_wildcard_pattern p1;
+        size_t s2_size;
+        size_t min_gap;
+        size_t max_gap;
 
         result_type current;
 
@@ -225,14 +205,14 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
                 const auto& top1 = lex_ranges[1].current_node();
                 if (top0->range_end_doc < top1->range_begin_doc)
                     lex_ranges[0].next();
-                else if (top0->range_end + p1.max_gap < top1->range_begin)
+                else if (top0->range_end + max_gap < top1->range_begin)
                     lex_ranges[0].next();
-                else if (top0->range_begin + p1.min_gap > top1->range_end)
+                else if (top0->range_begin + min_gap > top1->range_end)
                     lex_ranges[1].next();
                 else if (top0->is_leaf && top1->is_leaf) {
                     a = top0->range_begin;
 
-                    if (b != 0 && a < b + p1.pattern.size()) {
+                    if (b != 0 && a < b + s2_size) {
                         lex_ranges[0].next();
                         continue;
                     }
@@ -242,7 +222,7 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
                     // push b forward
                     lex_ranges[1].next();
                     while (valid()
-                           && a + p1.max_gap >= lex_ranges[1].current_node()->range_begin
+                           && a + max_gap >= lex_ranges[1].current_node()->range_begin
                            && top0->range_end_doc == lex_ranges[1].current_node()->range_begin_doc) {
                         auto leaf = lex_ranges[1].retrieve_leaf_and_traverse();
                         if (leaf != nullptr)
@@ -251,9 +231,8 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
 
                     // pull a forward
                     while (valid() &&
-                           lex_ranges[0].current_node()->range_end < b + p1.pattern.size())
+                           lex_ranges[0].current_node()->range_end < b + s2_size)
                         lex_ranges[0].next();
-
 
                     current = make_pair(a, b);
                     return true;
@@ -269,19 +248,21 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
         wild_card_match_iterator()
         {
         }
-// static assert random container http://stackoverflow.com/questions/23665053/how-to-restrict-template-parameter-to-pointer-or-random-access-iterator-only
+
         wild_card_match_iterator(const type_index& index,
-                                 string s,//TODO: replace sting by template type t_rac (random access container)
-                                 incremental_wildcard_pattern p1)
-            : p1(p1)
+                t_rac s1,
+                t_rac s2,
+                size_t min_gap,
+                size_t max_gap)
+            : s2_size(s2.size()), min_gap(min_gap), max_gap(max_gap)
         {
             auto root_node = make_shared<node_cache<type_index>>(index.wt.root(), index, nullptr, nullptr);
-            size_type sp = 1, ep = 0;
+            size_type sp, ep;
 
-            backward_search(index.csa, 0, index.csa.size()-1, s.begin(), s.end(), sp, ep);
+            backward_search(index.csa, 0, index.csa.size()-1, s1.begin(), s1.end(), sp, ep);
             lex_ranges.emplace_back(index, range_type(sp, ep),root_node);
 
-            backward_search(index.csa, 0, index.csa.size()-1, p1.pattern.begin(), p1.pattern.end(), sp, ep);
+            backward_search(index.csa, 0, index.csa.size()-1, s2.begin(), s2.end(), sp, ep);
             lex_ranges.emplace_back(index, range_type(sp, ep),root_node);
 
             next();
@@ -344,7 +325,8 @@ template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>,
                                 typedef typename wt_type::node_type   node_type;
                                 typedef typename csa_type::size_type  size_type;
 
-                                typedef wild_card_match_iterator<index_type> iterator;
+                                typedef typename t_csa::string_type string_type;
+                                typedef wild_card_match_iterator<index_type, string_type> iterator;
 
 
                                 private:
@@ -429,14 +411,16 @@ size_type get_document_index(size_type symbol_index) const
     return m_dbs_rank.rank(symbol_index);
 }
 
-matching_container<iterator> match2(
-    const string s,
-    const incremental_wildcard_pattern p1
+matching_container<iterator> match(
+    const string_type s1,
+    const string_type s2,
+    const size_t min_gap,
+    const size_t max_gap
 ) const
 {
     return matching_container<iterator>(
-        wild_card_match_iterator<index_type>(*this, s, p1),
-        wild_card_match_iterator<index_type>());
+        iterator(*this, s1, s2, min_gap, max_gap),
+        iterator());
 }
                             };
 

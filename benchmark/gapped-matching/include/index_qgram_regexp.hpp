@@ -114,7 +114,7 @@ class index_qgram_regexp
             }
         }
 
-        std::vector<uint64_t> str_to_qids(const std::string& str) const
+        std::vector<uint64_t> str_to_qids(const string_type& str) const
         {
             std::vector<uint64_t> qids;
             union qid_type qid;

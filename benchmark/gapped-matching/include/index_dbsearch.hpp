@@ -54,8 +54,8 @@ class index_dbsearch
         search(const gapped_pattern& pat) const
         {
             gapped_search_result res;
-            std::string s1;
-            std::string s2;
+            string_type s1;
+            string_type s2;
             size_type min_gap = 0;
             size_type max_gap = 0;
 

@@ -29,7 +29,7 @@ RES_FILE=results/all.txt
 
 execs: $(GM_EXECS)
 
-collections/%/text.TEXT: execs $(UNIQUE_DATA_FILES)
+collections/%/text.TEXT: build/create_collection.x $(UNIQUE_DATA_FILES)
 	$(eval TC_ID:=$(call dim,1,$*))
 	$(eval SOURCE_FILE:=$(call config_select,test_case.config,$(TC_ID),2))
 	$(eval NUM_BYTES:=$(call config_select,test_case.config,$(TC_ID),5))
@@ -50,12 +50,13 @@ results/%: $(GM_EXECS) $(TC_COLLECTIONS) $(GM_PATTERNS)
 	$(eval ALGO:=$(call dim,1,$*))
 	$(eval PATTERN_ID:=$(call dim,2,$*))
 	$(eval TC_ID:=$(call dim,3,$*))
+	$(eval IS_TEXT:=$(call config_select,test_case.config,$(TC_ID),7))
 	@echo "# COLL_ID = $(TC_ID)" > $@
 	@echo "# PATT_SAMPLE = $(PATTERN_ID)" >> $@
 	@echo "# ALGO = $(ALGO)" >> $@
 	$(eval SENTINEL:="collections/$(TC_ID).$(ALGO).sentinel")
 	@test -e $(SENTINEL) || { echo "Running build/gm_index-$(ALGO).x -c collections/$(TC_ID)"; ./build/gm_index-$(ALGO).x -c collections/$(TC_ID); touch $(SENTINEL); }
-	build/gm_search-$(ALGO).x -c collections/$(TC_ID) -p collections/$(TC_ID)/patterns/regex.$(TC_ID).$(PATTERN_ID).regex.txt >> $@
+	build/gm_search-$(ALGO).x -c collections/$(TC_ID) -p collections/$(TC_ID)/patterns/regex.$(TC_ID).$(PATTERN_ID).regex.txt -t $(IS_TEXT) >> $@
 
 ../../examples/generate-pattern.x:
 	@cd ../../examples; make generate-pattern.x
@@ -64,8 +65,9 @@ results/%: $(GM_EXECS) $(TC_COLLECTIONS) $(GM_PATTERNS)
 collections/%.words.txt: $(TC_COLLECTIONS) ../../examples/generate-pattern.x
 	$(eval TC_ID:=$(call dim,2,$*))
 	$(eval SP_LENGTH:=$(call dim,3,$*))
+	$(eval IS_TEXT:=$(call config_select,test_case.config,$(TC_ID),7))
 	@echo "Extracting words of length $(SP_LENGTH) from $(TC_ID)..."
-	@../../examples/generate-pattern.x collections/$(TC_ID)/text.TEXT 20 $(SP_LENGTH) > $@
+	@../../examples/generate-pattern.x collections/$(TC_ID)/text.TEXT 20 $(SP_LENGTH) $(IS_TEXT) > $@
 
 # Format: collections/[TC_ID]/patterns/regex.[TC_ID].[PATTERN_ID].regex.txt
 collections/%.regex.txt: $(GM_WORDS)

@@ -16,7 +16,7 @@ typedef struct cmdargs {
 
 void print_usage(const char* program)
 {
-    fprintf(stdout, "%s -i <input file> -n <input num bytes> -c <col dir>\n", program);
+    fprintf(stdout, "%s -i <input file> [-n <input num bytes>] -c <col dir>\n", program);
     fprintf(stdout, "where\n");
     fprintf(stdout, "  -i <input file>      : the input file.\n");
     fprintf(stdout, "  -n <input num bytes> : #bytes per symbol or 0 for int_vector<0>. (default: 1)\n");
@@ -103,6 +103,9 @@ int main(int argc, const char* argv[])
         if (!sdsl::load_vector_from_file(buf, args.input_file, args.num_bytes)) {
             LOG(FATAL) << "Error opening input file '" << args.input_file << "'";
         }
+        for (size_t i=0; i<buf.size(); ++i)
+            if (buf[i] == 0)
+                buf.resize(i);
         sdsl::util::bit_compress(buf);
         sdsl::store_to_file(buf, args.collection_dir+"/"+ consts::KEY_PREFIX + consts::KEY_TEXT);
 
