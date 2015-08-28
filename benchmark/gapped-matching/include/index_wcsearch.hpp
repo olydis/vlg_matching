@@ -5,6 +5,8 @@
 #include "sdsl/suffix_arrays.hpp"
 #include "sdsl/matching.hpp"
 
+//size_t sdsl::PERFCTR_NUM_PROCESSED_WT_NODES;
+
 // THIS IS JUST A PROXY until a consistent API for indices is figured out
 // (or is the "collection"-approach final?)
 class index_wcsearch
@@ -84,9 +86,11 @@ class index_wcsearch
                 // (this is an important concept, as it allows single-term matching by setting min/max_gap=0)
             }
 
+            sdsl::PERFCTR_NUM_PROCESSED_WT_NODES = 1;
             for (auto hit : index.match(s1, s2, min_gap, max_gap)) {
                 res.positions.push_back(hit.first);
             }
+            cout << "Processed nodes: " << sdsl::PERFCTR_NUM_PROCESSED_WT_NODES << endl;
             return res;
         }
 };

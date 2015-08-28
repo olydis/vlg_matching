@@ -43,7 +43,6 @@ namespace sdsl
 template<class t_csa, class t_wt, class t_bv>
 class matching_index;
 
-// TODO: think about more general way
 template<class t_iter>
 class matching_container
 {
@@ -66,6 +65,8 @@ class matching_container
             return m_end;
         }
 };
+
+static size_t PERFCTR_NUM_PROCESSED_WT_NODES;
 
 template<class type_index>
 struct node_cache {
@@ -111,6 +112,7 @@ struct node_cache {
             size_type* range_center_doc = this->range_begin_doc == this->range_end_doc ? range_begin_doc : nullptr;
             size_type* range_end_doc = &this->range_end_doc;
 
+            PERFCTR_NUM_PROCESSED_WT_NODES++;
             auto children = index.wt.expand(node);
             this->children = make_pair(
                                  make_shared<node_cache>(children[0], index, range_begin_doc, range_center_doc),
