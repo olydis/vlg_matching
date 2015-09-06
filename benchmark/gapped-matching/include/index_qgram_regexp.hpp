@@ -214,20 +214,30 @@ class index_qgram_regexp
             //LOG(INFO) << "potential_start_positions = " << potential_start_positions;
 
             /* (2) find all matching pos */
+            int64_t last_match_end = -1;
             if (potential_start_positions.empty()) { // case where we only have subpatterns smaller than q!
                 auto matches_begin = std::sregex_iterator(m_text.begin(),m_text.end(),rx);
                 auto matches_end = std::sregex_iterator();
                 for (std::sregex_iterator it = matches_begin; it != matches_end; ++it) {
-                    res.positions.push_back(it->position());
+                    int64_t pos = it->position();
+                    if(pos >= last_match_end) {
+                        res.positions.push_back(pos);
+                        last_match_end = pos + it->length();
+                    }
                 }
             } else {
-                for (const auto& start_pos : potential_start_positions) {
-                    if (start_pos > m_text.size()) // bugfix by Johannes: start_pos seems to be a very very very large (= negative?) number sometimes => segfault in line below
+                for (int64_t start_pos : potential_start_positions) {
+                    if (start_pos > (int64_t) m_text.size()) // bugfix by Johannes: start_pos seems to be a very very very large (= negative?) number sometimes => segfault in line below
                         continue;
+                    if(last_match_end > start_pos)
+                        continue;
+
                     auto matches_begin = std::sregex_iterator(m_text.begin()+start_pos,m_text.begin()+start_pos+max_pattern_len,rx);
                     auto matches_end = std::sregex_iterator();
                     for (std::sregex_iterator it = matches_begin; it != matches_end; ++it) {
-                        res.positions.push_back(start_pos+it->position());
+                        int64_t pos = start_pos+it->position();
+                        res.positions.push_back(pos);
+                        last_match_end = pos + it->length();
                     }
                 }
             }
