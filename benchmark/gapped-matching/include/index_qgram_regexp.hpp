@@ -25,6 +25,7 @@ class index_qgram_regexp
         static_assert(t_q <= 8,"q-gram index only supported for q <= 8");
 
     public:
+        const uint64_t small_thres = 1000;
         enum { q = t_q };
         typedef sdsl::int_vector<0>::size_type size_type;
         typedef sdsl::int_vector<0>::value_type value_type;
@@ -154,60 +155,120 @@ class index_qgram_regexp
                 return res;
             }
 
-            /* (1) construct regexp */
-
-
             /* extract the different q-grams from the subpatterns */
             std::vector<uint64_t> potential_start_positions;
-            size_t pat_start_offset = 0;
-            for (size_t j=0; j<pat.subpatterns.size(); j++) {
-                const auto& subp = pat.subpatterns[j];
-                if (subp.size() < q) { // UNION over lists. TODO!
-                    LOG(INFO) << "skip small q-gram for now: " << subp;
-                } else { // Intersection over lists
-                    auto qids = str_to_qids(subp);   // get vector of q-grams for subpattern subp
-                    // LOG(INFO) << "subpattern = '" << subp << "' qgram-ids = " << qids;
-                    /* for each qgram get the list */
-                    std::vector<typename comp_list_type::list_type> plists;
-                    std::vector<offset_proxy_list<typename comp_list_type::list_type>> lists;
-                    size_type i = 0;
+            auto max_pattern_len = 0ULL;
+            typename comp_list_type::list_type smallest_list;
+            typename comp_list_type::list_type total_smallest_list;
+            uint64_t total_smallest_list_offset = 0;
+            /* check if one of the q-gram lists is small! just use those positions instead */
+            {
+                bool found_small_list = false;
+                bool first = true;
+                uint64_t smallest_qgram_pat_start_offset = 0;
+                for (size_t j=0; j<pat.subpatterns.size(); j++) {
+                    const auto& subp = pat.subpatterns[j];
+                    auto qids = str_to_qids(subp);
                     for (const auto& qid : qids) {
                         auto litr = m_qgram_lists.find(qid);
                         if (litr == m_qgram_lists.end()) {
-                            // q-gram does not exist. no results possible -> return
                             return res;
                         } else {
                             auto list_offset = litr->second;
-                            plists.emplace_back(comp_list_type::materialize(m_list_strm,list_offset));
-                            lists.emplace_back(offset_proxy_list<typename comp_list_type::list_type>(plists.back(),i++));
+                            auto list = comp_list_type::materialize(m_list_strm,list_offset);
+                            if(list.size() <= small_thres) {
+                                //std::cerr << "found small list = " << list.size() << std::endl;
+                                if( !found_small_list || smallest_list.size() > list.size()) {
+                                    found_small_list = true;
+                                    smallest_list = std::move(list);
+                                }
+                            }
+                            if(first || list.size() < total_smallest_list.size()) {
+                                total_smallest_list = list;
+                                total_smallest_list_offset = smallest_qgram_pat_start_offset;
+                                first = false;
+                            }
                         }
                     }
-                    if (lists.size() > 1) { // intersect lists of q-grams of subpatterns if there is more than on list (= qids.size() > 1)
-                        auto ires = pos_intersect(lists);
-                        if (potential_start_positions.empty() || ires.size() < potential_start_positions.size()) {
-                            potential_start_positions.clear();
-                            for (size_t l=0; l<ires.size(); l++) {
-                                potential_start_positions.push_back(ires[l]-pat_start_offset);
-                            }
-                        }
-                    } else { // no intersection required if there is only list (=qids.size()==1)
-
-                        if (potential_start_positions.empty() || lists[0].size() < potential_start_positions.size()) {
-                            potential_start_positions.clear();
-                            auto itr = lists[0].begin();
-                            auto end = lists[0].end();
-                            while (itr != end) {
-                                potential_start_positions.push_back(*itr - pat_start_offset);
-                                ++itr;
-                            }
-                        }
+                    smallest_qgram_pat_start_offset += subp.size();
+                    if (j != pat.gaps.size()) smallest_qgram_pat_start_offset += pat.gaps[j].second;
+                }
+                if(found_small_list) {
+                    auto itr = smallest_list.begin();
+                    auto end = smallest_list.end();
+                    while (itr != end) {
+                        potential_start_positions.push_back(*itr - smallest_qgram_pat_start_offset);
+                        ++itr;
                     }
                 }
-                pat_start_offset += subp.size();
-                if (j != pat.gaps.size()) pat_start_offset += pat.gaps[j].second; // use min here?
-                // LOG(INFO) << "pat_start_offset = " << pat_start_offset;
+                max_pattern_len = smallest_qgram_pat_start_offset;
             }
-            auto max_pattern_len = pat_start_offset;
+
+            if(potential_start_positions.size() == 0) {
+                size_t pat_start_offset = 0;
+                for (size_t j=0; j<pat.subpatterns.size(); j++) {
+                    const auto& subp = pat.subpatterns[j];
+                    if (subp.size() < q) { // UNION over lists. TODO!
+                        LOG(INFO) << "skip small q-gram for now: " << subp;
+                    } else { // Intersection over lists
+                        auto qids = str_to_qids(subp);   // get vector of q-grams for subpattern subp
+                        // LOG(INFO) << "subpattern = '" << subp << "' qgram-ids = " << qids;
+                        /* for each qgram get the list */
+                        std::vector<typename comp_list_type::list_type> plists;
+                        std::vector<offset_proxy_list<typename comp_list_type::list_type>> lists;
+                        for(size_t l=0;l<qids.size();) {
+                            auto qid = qids[l];
+                            //std::cerr << "qgram = " << l << std::endl;
+                            auto litr = m_qgram_lists.find(qid);
+                            if (litr == m_qgram_lists.end()) {
+                                // q-gram does not exist. no results possible -> return
+                                return res;
+                            } else {
+                                auto list_offset = litr->second;
+                                plists.emplace_back(comp_list_type::materialize(m_list_strm,list_offset));
+                                lists.emplace_back(offset_proxy_list<typename comp_list_type::list_type>(plists.back(),l));
+                            }
+                            auto left = qids.size() - l;
+                            if(left >= q) {
+                                l += q;
+                            } else {
+                                l++;
+                            }
+                        }
+                        if (lists.size() > 1) { // intersect lists of q-grams of subpatterns if there is more than on list (= qids.size() > 1)
+                            auto ires = pos_intersect(lists,small_thres);
+                            if (potential_start_positions.empty() || ires.size() < potential_start_positions.size()) {
+                                potential_start_positions.clear();
+                                for (size_t l=0; l<ires.size(); l++) {
+                                    potential_start_positions.push_back(ires[l]-pat_start_offset);
+                                }
+                            }
+                        } else { 
+                            // no intersection required if there is only list (=qids.size()==1)
+                            // if at the end we still dont have positions we just 
+                            // select the smallest list
+                        }
+
+                        if(potential_start_positions.size() <= small_thres) {
+                            break; // have only a few pos
+                        }
+                    }
+                    pat_start_offset += subp.size();
+                    if (j != pat.gaps.size()) pat_start_offset += pat.gaps[j].second; // use min here?
+                    // LOG(INFO) << "pat_start_offset = " << pat_start_offset;
+                }
+            }
+
+            /* after all this we still haven't found stuff so we just take the
+            // smallest qgram list */
+            if( potential_start_positions.size() == 0) {
+                auto itr = total_smallest_list.begin();
+                auto end = total_smallest_list.end();
+                while (itr != end) {
+                    potential_start_positions.push_back(*itr - total_smallest_list_offset);
+                    ++itr;
+                }
+            }
 
             /* sort potential positions */
             std::sort(potential_start_positions.begin(),potential_start_positions.end());

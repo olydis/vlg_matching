@@ -91,3 +91,25 @@ pos_intersect(std::vector<t_list> lists)
     }
     return res;
 }
+
+
+template<class t_list>
+intersection_result
+pos_intersect(std::vector<t_list> lists,uint64_t thres)
+{
+    // sort by size
+    std::sort(lists.begin(),lists.end());
+
+    // perform SvS intersection
+    auto offset = lists[1].offset() - lists[0].offset();
+    auto res = intersect(lists[0],lists[1],offset);
+    res.offset = std::min(lists[0].offset(),lists[1].offset());
+    for (size_t i=2; i<lists.size(); i++) {
+        auto offset = lists[i].offset() - res.offset;
+        auto new_offset = std::min(res.offset,lists[i].offset());
+        res = intersect(res,lists[i],offset);
+        res.offset = new_offset;
+        if (res.size()<=thres) break;
+    }
+    return res;
+}
