@@ -43,29 +43,6 @@ namespace sdsl
 template<class t_csa, class t_wt, class t_bv>
 class matching_index;
 
-struct incremental_wildcard_pattern {
-    const string pattern;
-    const size_t min_gap;
-    const size_t max_gap;
-
-    incremental_wildcard_pattern() :
-        pattern(""),
-        min_gap(0),
-        max_gap(0)
-    { }
-
-    incremental_wildcard_pattern(
-        const string pattern,
-        const size_t min_gap,
-        const size_t max_gap) :
-        pattern(pattern),
-        min_gap(min_gap),
-        max_gap(max_gap)
-    {
-    }
-};
-
-// TODO: think about more general way
 template<class t_iter>
 class matching_container
 {
@@ -88,6 +65,8 @@ class matching_container
             return m_end;
         }
 };
+
+static size_t PERFCTR_NUM_PROCESSED_WT_NODES;
 
 template<class type_index>
 struct node_cache {
@@ -133,6 +112,7 @@ struct node_cache {
             size_type* range_center_doc = this->range_begin_doc == this->range_end_doc ? range_begin_doc : nullptr;
             size_type* range_end_doc = &this->range_end_doc;
 
+            PERFCTR_NUM_PROCESSED_WT_NODES++;
             auto children = index.wt.expand(node);
             this->children = make_pair(
                                  make_shared<node_cache>(children[0], index, range_begin_doc, range_center_doc),
@@ -198,7 +178,7 @@ class wavelet_tree_range_walker
         }
 };
 
-template<class type_index>
+template<class type_index, class t_rac>
 class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag, pair<typename type_index::size_type, typename type_index::size_type>>
 {
     private:
@@ -213,7 +193,9 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
         size_t a = 0;
         size_t b = 0;
 
-        incremental_wildcard_pattern p1;
+        size_t s2_size;
+        size_t min_gap;
+        size_t max_gap;
 
         result_type current;
 
@@ -225,14 +207,14 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
                 const auto& top1 = lex_ranges[1].current_node();
                 if (top0->range_end_doc < top1->range_begin_doc)
                     lex_ranges[0].next();
-                else if (top0->range_end + p1.max_gap < top1->range_begin)
+                else if (top0->range_end + max_gap < top1->range_begin)
                     lex_ranges[0].next();
-                else if (top0->range_begin + p1.min_gap > top1->range_end)
+                else if (top0->range_begin + min_gap > top1->range_end)
                     lex_ranges[1].next();
                 else if (top0->is_leaf && top1->is_leaf) {
                     a = top0->range_begin;
 
-                    if (b != 0 && a < b + p1.pattern.size()) {
+                    if (b != 0 && a < b + s2_size) {
                         lex_ranges[0].next();
                         continue;
                     }
@@ -242,7 +224,7 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
                     // push b forward
                     lex_ranges[1].next();
                     while (valid()
-                           && a + p1.max_gap >= lex_ranges[1].current_node()->range_begin
+                           && a + max_gap >= lex_ranges[1].current_node()->range_begin
                            && top0->range_end_doc == lex_ranges[1].current_node()->range_begin_doc) {
                         auto leaf = lex_ranges[1].retrieve_leaf_and_traverse();
                         if (leaf != nullptr)
@@ -251,9 +233,8 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
 
                     // pull a forward
                     while (valid() &&
-                           lex_ranges[0].current_node()->range_end < b + p1.pattern.size())
+                           lex_ranges[0].current_node()->range_end < b + s2_size)
                         lex_ranges[0].next();
-
 
                     current = make_pair(a, b);
                     return true;
@@ -269,18 +250,21 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
         wild_card_match_iterator()
         {
         }
+
         wild_card_match_iterator(const type_index& index,
-                                 string s,
-                                 incremental_wildcard_pattern p1)
-            : p1(p1)
+                t_rac s1,
+                t_rac s2,
+                size_t min_gap,
+                size_t max_gap)
+            : s2_size(s2.size()), min_gap(min_gap), max_gap(max_gap)
         {
             auto root_node = make_shared<node_cache<type_index>>(index.wt.root(), index, nullptr, nullptr);
-            size_type sp = 1, ep = 0;
+            size_type sp, ep;
 
-            backward_search(index.csa, 0, index.csa.size()-1, s.begin(), s.end(), sp, ep);
+            backward_search(index.csa, 0, index.csa.size()-1, s1.begin(), s1.end(), sp, ep);
             lex_ranges.emplace_back(index, range_type(sp, ep),root_node);
-            
-            backward_search(index.csa, 0, index.csa.size()-1, p1.pattern.begin(), p1.pattern.end(), sp, ep);
+
+            backward_search(index.csa, 0, index.csa.size()-1, s2.begin(), s2.end(), sp, ep);
             lex_ranges.emplace_back(index, range_type(sp, ep),root_node);
 
             next();
@@ -322,122 +306,125 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
 };
 
 template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>,
-         class t_wt=wt_int<bit_vector, rank_support_v5<>, select_support_scan<1>, select_support_scan<0>>,
-         class t_bv=rrr_vector<>>
-class matching_index
+                                    class t_wt=wt_int<bit_vector, rank_support_v5<>, select_support_scan<1>, select_support_scan<0>>,
+                                    class t_bv=rrr_vector<>>
+                            class matching_index
+                            {
+                                static_assert(std::is_same<typename index_tag<t_csa>::type, csa_tag>::value,
+                                        "First template argument has to be a suffix array.");
+                                static_assert(std::is_same<typename index_tag<t_wt>::type, wt_tag>::value,
+                                        "Second template argument has to be a wavelet tree.");
+                                static_assert(std::is_same<typename index_tag<t_bv>::type, bv_tag>::value,
+                                        "Third template argument has to be a bitvector.");
+
+                                private:
+                                typedef matching_index<t_csa, t_wt, t_bv> index_type;
+                                public:
+                                typedef t_csa                         csa_type;
+                                typedef t_wt                          wt_type;
+                                typedef t_bv                          bv_type;
+                                typedef typename bv_type::rank_1_type rank_type;
+                                typedef typename wt_type::node_type   node_type;
+                                typedef typename csa_type::size_type  size_type;
+
+                                typedef typename t_csa::string_type string_type;
+                                typedef wild_card_match_iterator<index_type, string_type> iterator;
+
+
+                                private:
+                                csa_type  m_csa;
+                                wt_type   m_wt;
+                                bv_type   m_dbs; // 1 marks the END of a document
+                                rank_type m_dbs_rank;
+
+                                public:
+                                const csa_type& csa = m_csa;
+                                const wt_type&  wt  = m_wt;
+
+                                //! Default constructor
+                                matching_index() = default;
+
+                                //! Copy constructor
+                                matching_index(const matching_index& idx)
+                                : m_csa(idx.m_csa), m_wt(idx.m_wt), m_dbs(idx.m_dbs), m_dbs_rank(idx.m_dbs_rank)
 {
-        static_assert(std::is_same<typename index_tag<t_csa>::type, csa_tag>::value,
-                "First template argument has to be a suffix array.");
-        static_assert(std::is_same<typename index_tag<t_wt>::type, wt_tag>::value,
-                "Second template argument has to be a wavelet tree.");
-        static_assert(std::is_same<typename index_tag<t_bv>::type, bv_tag>::value,
-                "Third template argument has to be a bitvector.");
+    m_dbs_rank.set_vector(&m_dbs);
+}
 
-    private:
-        typedef matching_index<t_csa, t_wt, t_bv> index_type;
-    public:
-        typedef t_csa                         csa_type;
-        typedef t_wt                          wt_type;
-        typedef t_bv                          bv_type;
-        typedef typename bv_type::rank_1_type rank_type;
-        typedef typename wt_type::node_type   node_type;
-        typedef typename csa_type::size_type  size_type;
+//! Copy constructor
+matching_index(matching_index&& idx)
+{
+    *this = std::move(idx);
+}
 
-        typedef wild_card_match_iterator<index_type> iterator;
+matching_index(csa_type csa, wt_type wt, bv_type dbs)
+: m_csa(csa), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
+{ }
 
+//! Assignment move operator
+matching_index& operator=(matching_index&& idx)
+{
+    if (this != &idx) {
+        m_csa      = std::move(idx.m_csa);
+        m_wt       = std::move(idx.m_wt);
+        m_dbs      = std::move(idx.m_dbs);
+        m_dbs_rank = std::move(idx.m_dbs_rank);
+        m_dbs_rank.set_vector(&m_dbs);
+    }
+    return *this;
+}
 
-    private:
-        csa_type  m_csa;
-        wt_type   m_wt;
-        bv_type   m_dbs; // 1 marks the END of a document
-        rank_type m_dbs_rank;
+//! Swap operation
+void swap(matching_index& idx)
+{
+    if (this != &idx) {
+        m_csa.swap(idx.m_csa);
+        m_wt.swap(idx.m_wt);
+        m_dbs.swap(idx.m_dbs);
+        util::swap_support(m_dbs_rank, idx.m_dbs_rank, &m_dbs, &(idx.m_dbs));
+    }
+}
 
-    public:
-        const csa_type& csa = m_csa;
-        const wt_type&  wt  = m_wt;
+//! Serializes the data structure into the given ostream
+size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const
+{
+    structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
+    size_type written_bytes = 0;
+    written_bytes += m_csa.serialize(out, child, "csa");
+    written_bytes += m_wt.serialize(out, child, "wt");
+    written_bytes += m_dbs.serialize(out, child, "dbs");
+    written_bytes += m_dbs_rank.serialize(out, child, "dbs_rank");
+    structure_tree::add_size(child, written_bytes);
+    return written_bytes;
+}
 
-        //! Default constructor
-        matching_index() = default;
+//! Loads the data structure from the given istream.
+void load(std::istream& in)
+{
+    m_csa.load(in);
+    m_wt.load(in);
+    m_dbs.load(in);
+    m_dbs_rank.load(in, &m_dbs);
+}
 
-        //! Copy constructor
-        matching_index(const matching_index& idx)
-            : m_csa(idx.m_csa), m_wt(idx.m_wt), m_dbs(idx.m_dbs), m_dbs_rank(idx.m_dbs_rank)
-        {
-            m_dbs_rank.set_vector(&m_dbs);
-        }
+size_type get_document_index(size_type symbol_index) const
+{
+    symbol_index = std::min(symbol_index, m_dbs.size());
+    return m_dbs_rank.rank(symbol_index);
+}
 
-        //! Copy constructor
-        matching_index(matching_index&& idx)
-        {
-            *this = std::move(idx);
-        }
-
-        matching_index(csa_type csa, wt_type wt, bv_type dbs)
-        : m_csa(csa), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
-        { }
-
-        //! Assignment move operator
-        matching_index& operator=(matching_index&& idx)
-        {
-            if (this != &idx) {
-                m_csa      = std::move(idx.m_csa);
-                m_wt       = std::move(idx.m_wt);
-                m_dbs      = std::move(idx.m_dbs);
-                m_dbs_rank = std::move(idx.m_dbs_rank);
-                m_dbs_rank.set_vector(&m_dbs);
-            }
-            return *this;
-        }
-
-        //! Swap operation
-        void swap(matching_index& idx)
-        {
-            if (this != &idx) {
-                m_csa.swap(idx.m_csa);
-                m_wt.swap(idx.m_wt);
-                m_dbs.swap(idx.m_dbs);
-                util::swap_support(m_dbs_rank, idx.m_dbs_rank, &m_dbs, &(idx.m_dbs));
-            }
-        }
-
-        //! Serializes the data structure into the given ostream
-        size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const
-        {
-            structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
-            size_type written_bytes = 0;
-            written_bytes += m_csa.serialize(out, child, "csa");
-            written_bytes += m_wt.serialize(out, child, "wt");
-            written_bytes += m_dbs.serialize(out, child, "dbs");
-            written_bytes += m_dbs_rank.serialize(out, child, "dbs_rank");
-            structure_tree::add_size(child, written_bytes);
-            return written_bytes;
-        }
-
-        //! Loads the data structure from the given istream.
-        void load(std::istream& in)
-        {
-            m_csa.load(in);
-            m_wt.load(in);
-            m_dbs.load(in);
-            m_dbs_rank.load(in, &m_dbs);
-        }
-
-        size_type get_document_index(size_type symbol_index) const
-        {
-            symbol_index = std::min(symbol_index, m_dbs.size());
-            return m_dbs_rank.rank(symbol_index);
-        }
-
-        matching_container<iterator> match2(
-            const string s,
-            const incremental_wildcard_pattern p1
-        ) const
-        {
-            return matching_container<iterator>(
-                wild_card_match_iterator<index_type>(*this, s, p1),
-                wild_card_match_iterator<index_type>());
-        }
-};
+matching_container<iterator> match(
+    const string_type s1,
+    const string_type s2,
+    const size_t min_gap,
+    const size_t max_gap
+) const
+{
+    return matching_container<iterator>(
+        iterator(*this, s1, s2, min_gap, max_gap),
+        iterator());
+}
+                            };
 
 template<class t_csa, class t_wt, class t_bv>
 void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, cache_config& config, uint8_t num_bytes)
@@ -452,15 +439,15 @@ void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, 
         auto event = memory_monitor::event("wt");
         construct(wts, cache_file_name(conf::KEY_SA, config));
     }
-    
+
     int_vector_buffer<0> text_buffer(file);
-    
+
     t_bv bv;
     {
         auto event = memory_monitor::event("dbs");
         bit_vector dbs(text_buffer.size(), 0);
         for (size_t i = 0; i < dbs.size(); i++)
-            dbs[i] = text_buffer[i] == '\n';
+                 dbs[i] = text_buffer[i] == '\n';
 
         bv = std::move(t_bv(dbs));
     }

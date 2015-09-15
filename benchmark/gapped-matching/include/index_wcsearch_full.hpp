@@ -9,13 +9,13 @@
 class index_wcsearch_full
 {
     private:
-        typedef sdsl::matching_index<> type_index;
-        type_index index;
+        typedef sdsl::matching_index<> index_type;
+        index_type index;
 
     public:
-        typedef typename type_index::node_type node_type;
-        typedef typename type_index::size_type size_type;
-        typedef typename type_index::wt_type   wt_type;
+        typedef typename index_type::node_type node_type;
+        typedef typename index_type::size_type size_type;
+        typedef typename index_type::wt_type   wt_type;
         typedef pair<size_type, size_type>     result_type;
         std::string name() const
         {
@@ -54,9 +54,11 @@ class index_wcsearch_full
         gapped_search_result
         search(const gapped_pattern& pat) const
         {
+            sdsl::PERFCTR_NUM_PROCESSED_WT_NODES = 1;
+            
             gapped_search_result res;
-            std::string s1;
-            std::string s2;
+            string_type s1;
+            string_type s2;
             size_type min_gap;
             size_type max_gap;
 
@@ -73,14 +75,14 @@ class index_wcsearch_full
             }
 
             // SA ranges
-            auto root_node = make_shared<sdsl::node_cache<type_index>>(index.wt.root(), index, nullptr, nullptr);
+            auto root_node = make_shared<sdsl::node_cache<index_type>>(index.wt.root(), index, nullptr, nullptr);
             size_type sp, ep;
 
             backward_search(index.csa, 0, index.csa.size()-1, s1.begin(), s1.end(), sp, ep);
-            sdsl::wavelet_tree_range_walker<type_index> lex_range0(index, sdsl::range_type(sp, ep),root_node);
+            sdsl::wavelet_tree_range_walker<index_type> lex_range0(index, sdsl::range_type(sp, ep),root_node);
             
             backward_search(index.csa, 0, index.csa.size()-1, s2.begin(), s2.end(), sp, ep);
-            sdsl::wavelet_tree_range_walker<type_index> lex_range1(index, sdsl::range_type(sp, ep),root_node);
+            sdsl::wavelet_tree_range_walker<index_type> lex_range1(index, sdsl::range_type(sp, ep),root_node);
             
             // iterate
             size_type a;
@@ -116,6 +118,7 @@ class index_wcsearch_full
                     lex_range0.split();
             }
             
+            cout << "Processed nodes: " << sdsl::PERFCTR_NUM_PROCESSED_WT_NODES << endl;
             return res;
         }
 };

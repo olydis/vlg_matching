@@ -6,7 +6,11 @@
 	$(eval DEST_DIR:=$(shell dirname $@))
 	cd $(DEST_DIR); curl -O $(URL)
 	$(eval FILE:=$(DEST_DIR)/$(notdir $(URL)))
-	@$(if $(filter-out ".gz",$(FILE)),\
+	$(eval FILE_PLAIN:=$(subst .gz,,$(FILE)))
+	$(eval TFILE:=$(firstword $(call config_filter,test_case.config,$@,2)))
+	@echo "$(FILE) -> $(FILE_PLAIN) -> $(TFILE)"
+	@$(if $(filter %.gz,$(FILE)),\
 		echo "Extract file $(FILE) using gunzip";\
 		gunzip $(FILE))
+	@mv $(FILE_PLAIN) $(TFILE) || echo ""
 

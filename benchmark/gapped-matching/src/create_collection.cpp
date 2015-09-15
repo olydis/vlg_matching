@@ -10,14 +10,16 @@
 
 typedef struct cmdargs {
     std::string input_file;
+    uint8_t     num_bytes;
     std::string collection_dir;
 } cmdargs_t;
 
 void print_usage(const char* program)
 {
-    fprintf(stdout, "%s -i <input file> -c <col dir>\n", program);
+    fprintf(stdout, "%s -i <input file> [-n <input num bytes>] -c <col dir>\n", program);
     fprintf(stdout, "where\n");
     fprintf(stdout, "  -i <input file>      : the input file.\n");
+    fprintf(stdout, "  -n <input num bytes> : #bytes per symbol or 0 for int_vector<0>. (default: 1)\n");
     fprintf(stdout, "  -c <collection dir>  : the collection dir.\n");
 };
 
@@ -27,10 +29,14 @@ cmdargs_t parse_args(int argc, const char* argv[])
     int op;
     args.input_file = "";
     args.collection_dir = "";
-    while ((op = getopt(argc, (char* const*)argv, "i:c:")) != -1) {
+    args.num_bytes = 1;
+    while ((op = getopt(argc, (char* const*)argv, "i:n:c:")) != -1) {
         switch (op) {
             case 'i':
                 args.input_file = optarg;
+                break;
+            case 'n':
+                args.num_bytes = std::stoi(optarg);
                 break;
             case 'c':
                 args.collection_dir = optarg;
@@ -50,12 +56,6 @@ int main(int argc, const char* argv[])
     log::start_log(argc, argv);
     cmdargs_t args = parse_args(argc, argv);
 
-    /* (0) check if input file exists */
-    std::ifstream ifs(args.input_file,std::ios::binary);
-    if (!ifs) {
-        LOG(FATAL) << "Error opening input file '" << args.input_file << "'";
-    }
-    ifs >> std::noskipws; // dont skip white spaces!
 
     /* (1) create collection dir */
     LOG(INFO) << "Creating collection directory structure in '" << args.collection_dir << "'";
@@ -67,26 +67,52 @@ int main(int argc, const char* argv[])
     utils::create_directory(args.collection_dir+"/patterns");
     utils::create_directory(args.collection_dir+"/results");
 
-    /* (3) copy file to sdsl format */
-    auto buf = sdsl::write_out_buffer<0>::create(args.collection_dir+"/"+ consts::KEY_PREFIX + consts::KEY_TEXT);
+    if (args.num_bytes == 1)
     {
-        gm_timer tm("COPY TO SDSL FORMAT",true);
-        std::copy(std::istream_iterator<uint8_t>(ifs),
-                  std::istream_iterator<uint8_t>(),
-                  std::back_inserter(buf));
-    }
-    {
-        for (size_t i=0; i<buf.size(); ++i) {
-            if (buf[i] == '\n' or buf[i] == '\r' or buf[i] == '\f')
-                buf[i] = ' ';
+        /* (3) check if input file exists */
+        std::ifstream ifs(args.input_file,std::ios::binary);
+        if (!ifs) {
+            LOG(FATAL) << "Error opening input file '" << args.input_file << "'";
         }
-        gm_timer tm("BIT COMPRESS",true);
-        sdsl::util::bit_compress(buf);
-    }
+        ifs >> std::noskipws; // dont skip white spaces!
 
-    LOG(INFO) << "num_syms = " << buf.size();
-    LOG(INFO) << "log2(sigma) = " << (int) buf.width();
-    LOG(INFO) << "text size = " << (buf.width()*buf.size())/(8*1024*1024) << " MiB";
+        /* (4) copy file to sdsl format */
+        auto buf = sdsl::write_out_buffer<0>::create(args.collection_dir+"/"+ consts::KEY_PREFIX + consts::KEY_TEXT);
+        {
+            gm_timer tm("COPY TO SDSL FORMAT",true);
+            std::copy(std::istream_iterator<uint8_t>(ifs),
+                      std::istream_iterator<uint8_t>(),
+                      std::back_inserter(buf));
+        }
+        {
+            for (size_t i=0; i<buf.size(); ++i) {
+                if (buf[i] == '\n' or buf[i] == '\r' or buf[i] == '\f')
+                    buf[i] = ' ';
+            }
+            gm_timer tm("BIT COMPRESS",true);
+            sdsl::util::bit_compress(buf);
+        }
+
+        LOG(INFO) << "num_syms = " << buf.size();
+        LOG(INFO) << "log2(sigma) = " << (int) buf.width();
+        LOG(INFO) << "text size = " << (buf.width()*buf.size())/(8*1024*1024) << " MiB";
+    }
+    else // handle integer alphabets
+    {
+        sdsl::int_vector<> buf;
+        if (!sdsl::load_vector_from_file(buf, args.input_file, args.num_bytes)) {
+            LOG(FATAL) << "Error opening input file '" << args.input_file << "'";
+        }
+        for (size_t i=0; i<buf.size(); ++i)
+            if (buf[i] == 0)
+                buf.resize(i);
+        sdsl::util::bit_compress(buf);
+        sdsl::store_to_file(buf, args.collection_dir+"/"+ consts::KEY_PREFIX + consts::KEY_TEXT);
+
+        LOG(INFO) << "num_syms = " << buf.size();
+        LOG(INFO) << "log2(sigma) = " << (int) buf.width();
+        LOG(INFO) << "text size = " << (buf.width()*buf.size())/(8*1024*1024) << " MiB";
+    }
 
     return EXIT_SUCCESS;
 }

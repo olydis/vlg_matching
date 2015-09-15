@@ -10,14 +10,16 @@ using namespace std::chrono;
 typedef struct cmdargs {
     std::string collection_dir;
     std::string pattern_file;
+    bool string_patterns;
 } cmdargs_t;
 
 void print_usage(const char* program)
 {
-    fprintf(stdout, "%s -c <collection dir> -p <pattern file>\n", program);
+    fprintf(stdout, "%s -c <collection dir> -p <pattern file> [-t <string patterns>]\n", program);
     fprintf(stdout, "where\n");
     fprintf(stdout, "  -c <collection dir>  : the collection dir.\n");
     fprintf(stdout, "  -p <pattern file>    : the pattern file.\n");
+    fprintf(stdout, "  -t <string patterns> : Whether the patterns are regular char-strings. (default: 1)\n");
 };
 
 cmdargs_t parse_args(int argc, const char* argv[])
@@ -25,13 +27,17 @@ cmdargs_t parse_args(int argc, const char* argv[])
     cmdargs_t args;
     int op;
     args.collection_dir = "";
-    while ((op = getopt(argc, (char* const*)argv, "c:p:")) != -1) {
+    args.string_patterns = true;
+    while ((op = getopt(argc, (char* const*)argv, "c:p:t:")) != -1) {
         switch (op) {
             case 'c':
                 args.collection_dir = optarg;
                 break;
             case 'p':
                 args.pattern_file = optarg;
+                break;
+            case 't':
+                args.string_patterns = string(optarg) == "1";
                 break;
         }
     }
@@ -136,7 +142,7 @@ int main(int argc, const char* argv[])
     collection col(args.collection_dir);
 
     /* parse pattern file */
-    auto patterns = utils::parse_pattern_file(args.pattern_file);
+    auto patterns = utils::parse_pattern_file(args.pattern_file, args.string_patterns);
 
     /* create index */
     {

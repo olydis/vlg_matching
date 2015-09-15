@@ -5,12 +5,15 @@
 #include "sdsl/suffix_arrays.hpp"
 #include "sdsl/matching.hpp"
 
+//size_t sdsl::PERFCTR_NUM_PROCESSED_WT_NODES;
+
 // THIS IS JUST A PROXY until a consistent API for indices is figured out
 // (or is the "collection"-approach final?)
 class index_wcsearch
 {
     private:
-        sdsl::matching_index<> index;
+        typedef sdsl::matching_index<sdsl::csa_wt<sdsl::wt_int<>>, sdsl::wt_int<>, sdsl::rrr_vector<>> index_type;
+        index_type index;
 
     public:
         typedef sdsl::int_vector<0>::size_type size_type;
@@ -48,7 +51,7 @@ class index_wcsearch
         std::string info(const gapped_pattern& pat) const 
         {
             // output SA-ranges (gives a good estimation about potential matches)
-            sdsl::matching_index<>::size_type total_range = 0, sp = 0, ep = 0;
+            index_type::size_type total_range = 0, sp = 0, ep = 0;
 
             std::string s1;
             std::string s2;
@@ -64,8 +67,8 @@ class index_wcsearch
         search(const gapped_pattern& pat) const
         {
             gapped_search_result res;
-            std::string s1;
-            std::string s2;
+            string_type s1;
+            string_type s2;
             size_type min_gap;
             size_type max_gap;
 
@@ -83,9 +86,11 @@ class index_wcsearch
                 // (this is an important concept, as it allows single-term matching by setting min/max_gap=0)
             }
 
-            for (auto hit : index.match2(s1, sdsl::incremental_wildcard_pattern(s2, min_gap, max_gap))) {
+            sdsl::PERFCTR_NUM_PROCESSED_WT_NODES = 1;
+            for (auto hit : index.match(s1, s2, min_gap, max_gap)) {
                 res.positions.push_back(hit.first);
             }
+            cout << "Processed nodes: " << sdsl::PERFCTR_NUM_PROCESSED_WT_NODES << endl;
             return res;
         }
 };

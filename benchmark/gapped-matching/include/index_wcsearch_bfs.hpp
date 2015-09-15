@@ -57,8 +57,8 @@ class index_wcsearch_bfs
             using range_type = sdsl::range_type;
 
             gapped_search_result res;
-            std::string s1;
-            std::string s2;
+            string_type s1;
+            string_type s2;
             size_t min_gap = 0;
             size_t max_gap = 0;
 

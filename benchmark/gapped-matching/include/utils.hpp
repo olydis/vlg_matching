@@ -14,14 +14,29 @@
 #include "timings.hpp"
 #include "sdsl/int_vector.hpp"
 
+typedef std::vector<uint64_t> string_type;
+
 struct gapped_pattern {
     std::string raw_regexp;
     sdsl::int_vector<0> sdsl_regexp;
-    std::vector<std::string> subpatterns;
+    std::vector<string_type> subpatterns;
     std::vector<std::string> gap_strs;
     std::vector<std::pair<uint64_t,uint64_t>> gaps;
-    gapped_pattern(const std::string& p) : raw_regexp(p)
+    gapped_pattern(const std::string& p, bool string_patterns) : raw_regexp(p)
     {
+        auto parse_subpattern = [&](std::string s) { 
+            if (string_patterns) {
+                return string_type(s.begin(), s.end());
+            } else {
+                std::istringstream symbol_stream(s);
+                string_type subpattern;
+                uint64_t symbol;
+                while (symbol_stream >> symbol)
+                    subpattern.push_back(symbol);
+                return subpattern;
+            }
+        };
+
         sdsl_regexp.resize(raw_regexp.size());
         for (size_t i=0; i<raw_regexp.size(); i++) {
             sdsl_regexp[i] = raw_regexp[i];
@@ -48,11 +63,11 @@ struct gapped_pattern {
             auto gap_pos = match.position();
             auto subptrlen = gap_pos - (last_gap_end+1);
             auto subpattern = raw_regexp.substr(last_gap_end+1,subptrlen);
-            subpatterns.push_back(subpattern);
+            subpatterns.push_back(parse_subpattern(subpattern));
             last_gap_end = gap_pos + gap_str.size() - 1;
         }
         auto last_subpattern = raw_regexp.substr(last_gap_end+1);
-        subpatterns.push_back(last_subpattern);
+        subpatterns.push_back(parse_subpattern(last_subpattern));
         LOG(INFO) << "PARSED('" << raw_regexp << "') -> GAPS = " << gaps << " SUBPATTERNS = " << subpatterns;
     };
 };
@@ -70,7 +85,7 @@ namespace utils
 {
 
 std::vector<gapped_pattern>
-parse_pattern_file(std::string file_name)
+parse_pattern_file(std::string file_name, bool string_patterns)
 {
     gm_timer tm("READ PATTERNS",true);
     std::vector<gapped_pattern> patterns;
@@ -79,7 +94,7 @@ parse_pattern_file(std::string file_name)
         std::string line;
         while (std::getline(in,line)) {
             try {
-                gapped_pattern pat(line);
+                gapped_pattern pat(line, string_patterns);
                 patterns.push_back(pat);
             } catch (...) {
                 LOG(ERROR) << "Could not parse pattern '" << line << "'. Skipped";
