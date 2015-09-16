@@ -146,14 +146,12 @@ class wavelet_tree_range_walker
             return dfs_stack.top().second;
         }
 
-        // moves to the next (adjacent) node in the iterator
-        void next()
+        void skip_subtree()
         {
             dfs_stack.pop();
         }
 
-        // splits the current node into two adjacent nodes with the same value range
-        void split()
+        void expand()
         {
             auto top = dfs_stack.top(); dfs_stack.pop();
             auto& node = top.second;
@@ -170,10 +168,10 @@ class wavelet_tree_range_walker
         {
             node_type node = current_node();
             if (node->is_leaf) {
-                next();
+                skip_subtree();
                 return node;
             }
-            split();
+            expand();
             return nullptr;
         }
 };
@@ -206,40 +204,40 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
                 const auto& top0 = lex_ranges[0].current_node();
                 const auto& top1 = lex_ranges[1].current_node();
                 if (top0->range_end_doc < top1->range_begin_doc)
-                    lex_ranges[0].next();
+                    lex_ranges[0].skip_subtree();
                 else if (top0->range_end + max_gap < top1->range_begin)
-                    lex_ranges[0].next();
+                    lex_ranges[0].skip_subtree();
                 else if (top0->range_begin + min_gap > top1->range_end)
-                    lex_ranges[1].next();
-                else if (top0->is_leaf && top1->is_leaf) {
+                    lex_ranges[1].skip_subtree();
+                else if (top0->is_leaf and top1->is_leaf) {
                     a = top0->range_begin;
 
-                    if (b != 0 && a < b + s2_size) {
-                        lex_ranges[0].next();
+                    if (b != 0 and a < b + s2_size) {
+                        lex_ranges[0].skip_subtree();
                         continue;
                     }
 
                     b = top1->range_begin;
 
                     // push b forward
-                    lex_ranges[1].next();
+                    lex_ranges[1].skip_subtree();
                     while (valid()
-                           && a + max_gap >= lex_ranges[1].current_node()->range_begin
-                           && top0->range_end_doc == lex_ranges[1].current_node()->range_begin_doc) {
+                           and a + max_gap >= lex_ranges[1].current_node()->range_begin
+                           and top0->range_end_doc == lex_ranges[1].current_node()->range_begin_doc) {
                         auto leaf = lex_ranges[1].retrieve_leaf_and_traverse();
                         if (leaf != nullptr)
                             b = leaf->range_begin;
                     }
 
                     // pull a forward
-                    while (valid() &&
+                    while (valid() and
                            lex_ranges[0].current_node()->range_end < b + s2_size)
-                        lex_ranges[0].next();
+                        lex_ranges[0].skip_subtree();
 
                     current = make_pair(a, b);
                     return true;
                 } else
-                    lex_ranges[top1->range_size() >= top0->range_size() ? 1 : 0].split();
+                    lex_ranges[top1->range_size() >= top0->range_size() ? 1 : 0].expand();
             }
 
             current = make_pair(0, 0);
@@ -272,7 +270,7 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
 
         bool valid() const
         {
-            return lex_ranges[0].has_more() && lex_ranges[1].has_more();
+            return lex_ranges[0].has_more() and lex_ranges[1].has_more();
         }
 
         result_type operator*() const

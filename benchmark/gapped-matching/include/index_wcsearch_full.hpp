@@ -90,12 +90,12 @@ class index_wcsearch_full
             while (lex_range0.has_more()) {
                 const auto& top0 = lex_range0.current_node();
                 if (lex_range1.has_more() && top0->range_begin + min_gap > lex_range1.current_node()->range_end)
-                    lex_range1.next();
+                    lex_range1.skip_subtree();
                 else if (!bs.empty() && top0->range_end + max_gap < bs.front())
-                    lex_range0.next();
+                    lex_range0.skip_subtree();
                 else if (top0->is_leaf) {                    
                     a = top0->range_begin;
-                    lex_range0.next();
+                    lex_range0.skip_subtree();
 
                     // push b forward
                     while (lex_range1.has_more()
@@ -115,7 +115,7 @@ class index_wcsearch_full
                         res.positions.push_back(a);
                     
                 } else
-                    lex_range0.split();
+                    lex_range0.expand();
             }
             
             cout << "Processed nodes: " << sdsl::PERFCTR_NUM_PROCESSED_WT_NODES << endl;
