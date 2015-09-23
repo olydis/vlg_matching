@@ -8,7 +8,8 @@
 class index_wcsearch_bfs
 {
     private:
-        sdsl::matching_index<> index;
+        typedef sdsl::matching_index<sdsl::csa_wt<sdsl::wt_int<>>, sdsl::wt_int<>, sdsl::rrr_vector<>> index_type;
+        index_type index;
 
     public:
         typedef sdsl::int_vector<0>::size_type size_type;

@@ -9,7 +9,7 @@
 class index_wcsearch_full
 {
     private:
-        typedef sdsl::matching_index<> index_type;
+        typedef sdsl::matching_index<sdsl::csa_wt<sdsl::wt_int<>>, sdsl::wt_int<>, sdsl::rrr_vector<>> index_type;
         index_type index;
 
     public:
