@@ -53,8 +53,15 @@ template <class t_idx>
 void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
 {
     /* load index */
-    t_idx idx(col);
+    t_idx idx;
     LOG(INFO) << "BENCH_INDEX (" << idx.name() << ")";
+    auto input_file = col.path + "/index/index-" + idx.name() + "-" + sdsl::util::class_to_hash(idx) + ".sdsl";
+    std::ifstream ifs(input_file);
+    if (ifs.is_open()) {
+        idx.load(ifs);
+    } else {
+        LOG(FATAL) << "cannot read index from file : " << input_file;
+    }
 
     /* benchmark */
     size_t num_results = 0;

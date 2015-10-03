@@ -28,15 +28,18 @@ class index_regexp
             std::copy(sdsl_text.begin(),sdsl_text.end(),std::back_inserter(m_text));
         }
 
-        size_type serialize(std::ostream&, sdsl::structure_tree_node* v=NULL, std::string name="")const
+        size_type serialize(std::ostream& ofs, sdsl::structure_tree_node* v=NULL, std::string name="")const
         {
-            sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
-            sdsl::structure_tree::add_size(child, 0);
-            return 0;
+            //sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+            //sdsl::structure_tree::add_size(child, 0);
+            //return 0;
+            ofs << m_text;
+            return m_text.size();
         }
 
-        void load(std::istream&)
+        void load(std::istream& ifs)
         {
+            m_text = text_type(std::istreambuf_iterator<char>(ifs), {});
         }
 
         void swap(index_regexp& ir)
