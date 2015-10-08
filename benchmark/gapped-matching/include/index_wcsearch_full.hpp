@@ -9,7 +9,7 @@
 class index_wcsearch_full
 {
     private:
-        typedef sdsl::matching_index<sdsl::csa_wt<sdsl::wt_int<>>, sdsl::wt_int<>, sdsl::rrr_vector<>> index_type;
+        typedef sdsl::matching_index<sdsl::wt_int<>, sdsl::rrr_vector<>> index_type;
         index_type index;
 
     public:
@@ -78,10 +78,10 @@ class index_wcsearch_full
             auto root_node = make_shared<sdsl::node_cache<index_type>>(index.wt.root(), index, nullptr, nullptr);
             size_type sp, ep;
 
-            backward_search(index.csa, 0, index.csa.size()-1, s1.begin(), s1.end(), sp, ep);
+            forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s1.begin(), s1.end(), sp, ep);
             sdsl::wavelet_tree_range_walker<index_type> lex_range0(index, sdsl::range_type(sp, ep),root_node);
             
-            backward_search(index.csa, 0, index.csa.size()-1, s2.begin(), s2.end(), sp, ep);
+            forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s2.begin(), s2.end(), sp, ep);
             sdsl::wavelet_tree_range_walker<index_type> lex_range1(index, sdsl::range_type(sp, ep),root_node);
             
             // iterate

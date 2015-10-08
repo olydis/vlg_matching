@@ -40,7 +40,7 @@ using namespace std;
 namespace sdsl
 {
 
-template<class t_csa, class t_wt, class t_bv>
+template<class t_wt, class t_bv>
 class matching_index;
 
 template<class t_iter>
@@ -251,76 +251,6 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
         wild_card_match_iterator() : text(dummy)
         {
         }
-        
-        template<class t_text_iter, class t_wt, class t_pat_iter>
-        typename t_wt::size_type
-        forward_search(
-            t_text_iter text_begin,
-            t_text_iter text_end,
-            const t_wt& sa_wt,
-            typename t_wt::size_type l,
-            typename t_wt::size_type r,
-            t_pat_iter begin,
-            t_pat_iter end,
-            typename t_wt::size_type& l_res,
-            typename t_wt::size_type& r_res,
-            SDSL_UNUSED typename std::enable_if<std::is_same<wt_tag, typename t_wt::index_category>::value, wt_tag>::type x = wt_tag()
-        )
-        {
-            assert(l <= r); assert(r < sa_wt.size());
-
-            auto size = sa_wt.size();
-
-            l_res = l;
-            r_res = l - 1;
-            auto l_res_upper = r + 1;
-            auto r_res_upper = r + 1;
-
-            // shortcut for too long patterns
-            if ((typename t_wt::size_type)(end - begin) >= size)
-                return 0;
-
-            // compares the pattern with CSA-prefix i (truncated to length $|pattern|$).
-            auto compare = [&](typename t_wt::size_type i) -> int {
-                auto text = text_begin + sa_wt[i];
-                auto current = begin;
-                for (; current != end; current++, text++)
-                {
-                    if (text == text_end) return 1;
-                    auto symbol_phrase = *current;
-                    auto symbol_text = *text;
-                    if (symbol_text < symbol_phrase) return 1;
-                    if (symbol_text > symbol_phrase) return -1;
-                }
-                return 0;
-            };
-
-            // binary search (on min)
-            while (l_res < l_res_upper) {
-                typename t_wt::size_type sample = l_res + (l_res_upper - l_res) / 2;
-                int result = compare(sample);
-                if (result == 1)
-                    l_res = sample + 1;
-                else if (result == -1)
-                    l_res_upper = sample;
-                else
-                    l_res_upper = sample;
-            }
-
-            // binary search (on max)
-            while (r_res + 1 < r_res_upper) {
-                typename t_wt::size_type sample = r_res + (r_res_upper - r_res) / 2;
-                int result = compare(sample);
-                if (result == 1)
-                    r_res = sample;
-                else if (result == -1)
-                    r_res_upper = sample;
-                else
-                    r_res = sample;
-            }
-
-            return r_res - l_res + 1;
-        }
 
         wild_card_match_iterator(const type_index& index,
                 t_rac s1,
@@ -378,27 +308,23 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
         }
 };
 
-template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>,
-                                    class t_wt=wt_int<bit_vector, rank_support_v5<>, select_support_scan<1>, select_support_scan<0>>,
+template<class t_wt=wt_int<bit_vector, rank_support_v5<>, select_support_scan<1>, select_support_scan<0>>,
                                     class t_bv=rrr_vector<>>
                             class matching_index
                             {
-                                static_assert(std::is_same<typename index_tag<t_csa>::type, csa_tag>::value,
-                                        "First template argument has to be a suffix array.");
                                 static_assert(std::is_same<typename index_tag<t_wt>::type, wt_tag>::value,
                                         "Second template argument has to be a wavelet tree.");
                                 static_assert(std::is_same<typename index_tag<t_bv>::type, bv_tag>::value,
                                         "Third template argument has to be a bitvector.");
 
                                 private:
-                                typedef matching_index<t_csa, t_wt, t_bv> index_type;
+                                typedef matching_index<t_wt, t_bv> index_type;
                                 public:
-                                typedef t_csa                         csa_type;
                                 typedef t_wt                          wt_type;
                                 typedef t_bv                          bv_type;
                                 typedef typename bv_type::rank_1_type rank_type;
                                 typedef typename wt_type::node_type   node_type;
-                                typedef typename csa_type::size_type  size_type;
+                                typedef typename wt_type::size_type   size_type;
 
                                 typedef int_vector<0>                 text_type;
                                 typedef wild_card_match_iterator<index_type, string_type> iterator;
@@ -406,14 +332,12 @@ template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>,
 
                                 private:
                                 text_type m_text;
-                                csa_type  m_csa;
                                 wt_type   m_wt;
                                 bv_type   m_dbs; // 1 marks the END of a document
                                 rank_type m_dbs_rank;
 
                                 public:
                                 const text_type& text = m_text;
-                                const csa_type&  csa = m_csa;
                                 const wt_type&   wt  = m_wt;
 
                                 //! Default constructor
@@ -421,7 +345,7 @@ template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>,
 
                                 //! Copy constructor
                                 matching_index(const matching_index& idx)
-                                : m_text(idx.m_text), m_csa(idx.m_csa), m_wt(idx.m_wt), m_dbs(idx.m_dbs), m_dbs_rank(idx.m_dbs_rank)
+                                : m_text(idx.m_text), m_wt(idx.m_wt), m_dbs(idx.m_dbs), m_dbs_rank(idx.m_dbs_rank)
 {
     m_dbs_rank.set_vector(&m_dbs);
 }
@@ -432,8 +356,8 @@ matching_index(matching_index&& idx)
     *this = std::move(idx);
 }
 
-matching_index(text_type text, csa_type csa, wt_type wt, bv_type dbs)
-: m_text(text), m_csa(csa), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
+matching_index(text_type text, wt_type wt, bv_type dbs)
+: m_text(text), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
 { }
 
 //! Assignment move operator
@@ -441,7 +365,6 @@ matching_index& operator=(matching_index&& idx)
 {
     if (this != &idx) {
         m_text     = std::move(idx.m_text);
-        m_csa      = std::move(idx.m_csa);
         m_wt       = std::move(idx.m_wt);
         m_dbs      = std::move(idx.m_dbs);
         m_dbs_rank = std::move(idx.m_dbs_rank);
@@ -455,7 +378,6 @@ void swap(matching_index& idx)
 {
     if (this != &idx) {
         m_text.swap(idx.m_text);
-        m_csa.swap(idx.m_csa);
         m_wt.swap(idx.m_wt);
         m_dbs.swap(idx.m_dbs);
         util::swap_support(m_dbs_rank, idx.m_dbs_rank, &m_dbs, &(idx.m_dbs));
@@ -468,7 +390,6 @@ size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::stri
     structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
     size_type written_bytes = 0;
     written_bytes += m_text.serialize(out, child, "text");
-    written_bytes += m_csa.serialize(out, child, "csa");
     written_bytes += m_wt.serialize(out, child, "wt");
     written_bytes += m_dbs.serialize(out, child, "dbs");
     written_bytes += m_dbs_rank.serialize(out, child, "dbs_rank");
@@ -480,7 +401,6 @@ size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::stri
 void load(std::istream& in)
 {
     m_text.load(in);
-    m_csa.load(in);
     m_wt.load(in);
     m_dbs.load(in);
     m_dbs_rank.load(in, &m_dbs);
@@ -505,15 +425,15 @@ matching_container<iterator> match(
 }
                             };
 
-template<class t_csa, class t_wt, class t_bv>
-void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, cache_config& config, uint8_t num_bytes)
+template<class t_wt, class t_bv>
+void construct(matching_index<t_wt, t_bv>& idx, const std::string& file, cache_config& config, uint8_t num_bytes)
 {
     int_vector<0> text;
     {
         auto event = memory_monitor::event("text");
         load_vector_from_file(text, file, num_bytes);
     }
-    t_csa csa;
+    csa_wt<wt_int<>> csa;
     {
         auto event = memory_monitor::event("csa");
         construct(csa, file, config, num_bytes);
@@ -538,7 +458,7 @@ void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, 
 
     {
         auto event = memory_monitor::event("compose"); // contains rank support initialization
-        idx = std::move(matching_index<t_csa, t_wt, t_bv>(text, csa, wts, bv));
+        idx = std::move(matching_index<t_wt, t_bv>(text, wts, bv));
     }
 }
 

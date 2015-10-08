@@ -8,7 +8,7 @@
 class index_wcsearch_bfs
 {
     private:
-        typedef sdsl::matching_index<sdsl::csa_wt<sdsl::wt_int<>>, sdsl::wt_int<>, sdsl::rrr_vector<>> index_type;
+        typedef sdsl::matching_index<sdsl::wt_int<>, sdsl::rrr_vector<>> index_type;
         index_type index;
 
     public:
@@ -51,10 +51,9 @@ class index_wcsearch_bfs
         gapped_search_result
         search(const gapped_pattern& pat) const
         {
-            auto csa = index.csa;
             auto wts = index.wt;
             using node_type = decltype(wts)::node_type;
-            using size_type = decltype(csa)::size_type;
+            using size_type = decltype(wts)::size_type;
             using range_type = sdsl::range_type;
 
             gapped_search_result res;
@@ -78,11 +77,11 @@ class index_wcsearch_bfs
             vector<node_type> nodes;
             nodes.push_back(wts.root());
             size_type sp = 1, ep = 0;
-            if ( backward_search(csa, 0, csa.size()-1, s1.begin(), s1.end(), sp, ep) > 0 )
+            if ( forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s1.begin(), s1.end(), sp, ep) > 0 )
                 lex_ranges[0].emplace_back(range_type(sp, ep),0);
             else
                 nodes.clear();
-            if ( backward_search(csa, 0, csa.size()-1, s2.begin(), s2.end(), sp, ep) > 0 )
+            if ( forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s2.begin(), s2.end(), sp, ep) > 0 )
                 lex_ranges[1].emplace_back(range_type(sp,ep),0);
             else
                 nodes.clear();

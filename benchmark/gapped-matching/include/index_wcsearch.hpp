@@ -12,7 +12,7 @@
 class index_wcsearch
 {
     private:
-        typedef sdsl::matching_index<sdsl::csa_wt<sdsl::wt_int<>>, sdsl::wt_int<>, sdsl::rrr_vector<>> index_type;
+        typedef sdsl::matching_index<sdsl::wt_int<>, sdsl::rrr_vector<>> index_type;
         index_type index;
 
     public:
@@ -57,7 +57,7 @@ class index_wcsearch
             std::string s2;
 
             for (size_t i = 0; i < pat.subpatterns.size(); ++i)
-                total_range += backward_search(index.csa, 0, index.csa.size()-1, pat.subpatterns[i].begin(), pat.subpatterns[i].end(), sp, ep);
+                total_range += forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, pat.subpatterns[i].begin(), pat.subpatterns[i].end(), sp, ep);
 
             return std::to_string(total_range);
         }

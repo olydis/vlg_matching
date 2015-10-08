@@ -9,7 +9,7 @@
 class index_dbsearch
 {
     private:
-        typedef sdsl::matching_index<sdsl::csa_wt<sdsl::wt_int<>>, sdsl::wt_int<>, sdsl::rrr_vector<>> index_type;
+        typedef sdsl::matching_index<sdsl::wt_int<>, sdsl::rrr_vector<>> index_type;
         index_type index;
         typedef std::pair<index_type::size_type, index_type::size_type> range_type;
         typedef std::pair<range_type, range_type> double_range_type;
@@ -72,10 +72,10 @@ class index_dbsearch
             // get ranges
             size_type sp1, ep1;
             size_type sp2, ep2;
-            vector<size_type> range_a(backward_search(index.csa, 0, index.csa.size()-1, s1.begin(), s1.end(), sp1, ep1));
-            vector<size_type> range_b(backward_search(index.csa, 0, index.csa.size()-1, s2.begin(), s2.end(), sp2, ep2));
-            std::copy(index.csa.begin() + sp1, index.csa.begin() + ep1 + 1, range_a.begin());
-            std::copy(index.csa.begin() + sp2, index.csa.begin() + ep2 + 1, range_b.begin());
+            vector<size_type> range_a(forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s1.begin(), s1.end(), sp1, ep1));
+            vector<size_type> range_b(forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s2.begin(), s2.end(), sp2, ep2));
+            std::copy(index.wt.begin() + sp1, index.wt.begin() + ep1 + 1, range_a.begin());
+            std::copy(index.wt.begin() + sp2, index.wt.begin() + ep2 + 1, range_b.begin());
             std::sort(range_a.begin(), range_a.end());
             std::sort(range_b.begin(), range_b.end());
             
