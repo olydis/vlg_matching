@@ -30,6 +30,8 @@ class index_regexp_boost
 
         size_type serialize(std::ostream& ofs, sdsl::structure_tree_node* v=NULL, std::string name="")const
         {
+            (void)v;
+            (void)name;
             ofs << m_text;
             return m_text.size();
         }

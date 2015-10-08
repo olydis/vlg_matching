@@ -30,6 +30,8 @@ class index_regexp
 
         size_type serialize(std::ostream& ofs, sdsl::structure_tree_node* v=NULL, std::string name="")const
         {
+            (void)v;
+            (void)name;
             //sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
             //sdsl::structure_tree::add_size(child, 0);
             //return 0;
