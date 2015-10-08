@@ -184,6 +184,9 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
         typedef typename type_index::size_type size_type;
         typedef typename type_index::wt_type   wt_type;
         typedef pair<size_type, size_type>     result_type;
+        
+        const typename type_index::text_type dummy;
+        const typename type_index::text_type& text;
 
         // (lex_range, node)
         vector<wavelet_tree_range_walker<type_index>> lex_ranges;
@@ -245,8 +248,78 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
         }
 
     public:
-        wild_card_match_iterator()
+        wild_card_match_iterator() : text(dummy)
         {
+        }
+        
+        template<class t_text_iter, class t_wt, class t_pat_iter>
+        typename t_wt::size_type
+        forward_search(
+            t_text_iter text_begin,
+            t_text_iter text_end,
+            const t_wt& sa_wt,
+            typename t_wt::size_type l,
+            typename t_wt::size_type r,
+            t_pat_iter begin,
+            t_pat_iter end,
+            typename t_wt::size_type& l_res,
+            typename t_wt::size_type& r_res,
+            SDSL_UNUSED typename std::enable_if<std::is_same<wt_tag, typename t_wt::index_category>::value, wt_tag>::type x = wt_tag()
+        )
+        {
+            assert(l <= r); assert(r < sa_wt.size());
+
+            auto size = sa_wt.size();
+
+            l_res = l;
+            r_res = l - 1;
+            auto l_res_upper = r + 1;
+            auto r_res_upper = r + 1;
+
+            // shortcut for too long patterns
+            if ((typename t_wt::size_type)(end - begin) >= size)
+                return 0;
+
+            // compares the pattern with CSA-prefix i (truncated to length $|pattern|$).
+            auto compare = [&](typename t_wt::size_type i) -> int {
+                auto text = text_begin + sa_wt[i];
+                auto current = begin;
+                for (; current != end; current++, text++)
+                {
+                    if (text == text_end) return 1;
+                    auto symbol_phrase = *current;
+                    auto symbol_text = *text;
+                    if (symbol_text < symbol_phrase) return 1;
+                    if (symbol_text > symbol_phrase) return -1;
+                }
+                return 0;
+            };
+
+            // binary search (on min)
+            while (l_res < l_res_upper) {
+                typename t_wt::size_type sample = l_res + (l_res_upper - l_res) / 2;
+                int result = compare(sample);
+                if (result == 1)
+                    l_res = sample + 1;
+                else if (result == -1)
+                    l_res_upper = sample;
+                else
+                    l_res_upper = sample;
+            }
+
+            // binary search (on max)
+            while (r_res + 1 < r_res_upper) {
+                typename t_wt::size_type sample = r_res + (r_res_upper - r_res) / 2;
+                int result = compare(sample);
+                if (result == 1)
+                    r_res = sample;
+                else if (result == -1)
+                    r_res_upper = sample;
+                else
+                    r_res = sample;
+            }
+
+            return r_res - l_res + 1;
         }
 
         wild_card_match_iterator(const type_index& index,
@@ -254,15 +327,17 @@ class wild_card_match_iterator : public std::iterator<std::forward_iterator_tag,
                 t_rac s2,
                 size_t min_gap,
                 size_t max_gap)
-            : s2_size(s2.size()), min_gap(min_gap), max_gap(max_gap)
+            : text(index.text), s2_size(s2.size()), min_gap(min_gap), max_gap(max_gap)
         {
             auto root_node = make_shared<node_cache<type_index>>(index.wt.root(), index, nullptr, nullptr);
             size_type sp, ep;
 
-            backward_search(index.csa, 0, index.csa.size()-1, s1.begin(), s1.end(), sp, ep);
+            auto size = index.wt.size();
+
+            forward_search(text.begin(), text.end(), index.wt, 0, size-1, s1.begin(), s1.end(), sp, ep);
             lex_ranges.emplace_back(index, range_type(sp, ep),root_node);
 
-            backward_search(index.csa, 0, index.csa.size()-1, s2.begin(), s2.end(), sp, ep);
+            forward_search(text.begin(), text.end(), index.wt, 0, size-1, s2.begin(), s2.end(), sp, ep);
             lex_ranges.emplace_back(index, range_type(sp, ep),root_node);
 
             next();
@@ -325,26 +400,28 @@ template<class t_csa=csa_wt<wt_huff<rrr_vector<63>>>,
                                 typedef typename wt_type::node_type   node_type;
                                 typedef typename csa_type::size_type  size_type;
 
-                                typedef typename t_csa::string_type string_type;
+                                typedef int_vector<0>                 text_type;
                                 typedef wild_card_match_iterator<index_type, string_type> iterator;
 
 
                                 private:
+                                text_type m_text;
                                 csa_type  m_csa;
                                 wt_type   m_wt;
                                 bv_type   m_dbs; // 1 marks the END of a document
                                 rank_type m_dbs_rank;
 
                                 public:
-                                const csa_type& csa = m_csa;
-                                const wt_type&  wt  = m_wt;
+                                const text_type& text = m_text;
+                                const csa_type&  csa = m_csa;
+                                const wt_type&   wt  = m_wt;
 
                                 //! Default constructor
                                 matching_index() = default;
 
                                 //! Copy constructor
                                 matching_index(const matching_index& idx)
-                                : m_csa(idx.m_csa), m_wt(idx.m_wt), m_dbs(idx.m_dbs), m_dbs_rank(idx.m_dbs_rank)
+                                : m_text(idx.m_text), m_csa(idx.m_csa), m_wt(idx.m_wt), m_dbs(idx.m_dbs), m_dbs_rank(idx.m_dbs_rank)
 {
     m_dbs_rank.set_vector(&m_dbs);
 }
@@ -355,14 +432,15 @@ matching_index(matching_index&& idx)
     *this = std::move(idx);
 }
 
-matching_index(csa_type csa, wt_type wt, bv_type dbs)
-: m_csa(csa), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
+matching_index(text_type text, csa_type csa, wt_type wt, bv_type dbs)
+: m_text(text), m_csa(csa), m_wt(wt), m_dbs(dbs), m_dbs_rank(&m_dbs)
 { }
 
 //! Assignment move operator
 matching_index& operator=(matching_index&& idx)
 {
     if (this != &idx) {
+        m_text     = std::move(idx.m_text);
         m_csa      = std::move(idx.m_csa);
         m_wt       = std::move(idx.m_wt);
         m_dbs      = std::move(idx.m_dbs);
@@ -376,6 +454,7 @@ matching_index& operator=(matching_index&& idx)
 void swap(matching_index& idx)
 {
     if (this != &idx) {
+        m_text.swap(idx.m_text);
         m_csa.swap(idx.m_csa);
         m_wt.swap(idx.m_wt);
         m_dbs.swap(idx.m_dbs);
@@ -388,6 +467,7 @@ size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::stri
 {
     structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
     size_type written_bytes = 0;
+    written_bytes += m_text.serialize(out, child, "text");
     written_bytes += m_csa.serialize(out, child, "csa");
     written_bytes += m_wt.serialize(out, child, "wt");
     written_bytes += m_dbs.serialize(out, child, "dbs");
@@ -399,6 +479,7 @@ size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::stri
 //! Loads the data structure from the given istream.
 void load(std::istream& in)
 {
+    m_text.load(in);
     m_csa.load(in);
     m_wt.load(in);
     m_dbs.load(in);
@@ -427,6 +508,11 @@ matching_container<iterator> match(
 template<class t_csa, class t_wt, class t_bv>
 void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, cache_config& config, uint8_t num_bytes)
 {
+    int_vector<0> text;
+    {
+        auto event = memory_monitor::event("text");
+        load_vector_from_file(text, file, num_bytes);
+    }
     t_csa csa;
     {
         auto event = memory_monitor::event("csa");
@@ -438,14 +524,12 @@ void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, 
         construct(wts, cache_file_name(conf::KEY_SA, config));
     }
 
-    int_vector_buffer<0> text_buffer(file);
-
     t_bv bv;
     {
         auto event = memory_monitor::event("dbs");
-        bit_vector dbs(text_buffer.size(), 0);
+        bit_vector dbs(text.size(), 0);
         for (size_t i = 0; i < dbs.size(); i++)
-                 dbs[i] = text_buffer[i] == '\n';
+                 dbs[i] = text[i] == '\n';
 
         bv = std::move(t_bv(dbs));
     }
@@ -454,7 +538,7 @@ void construct(matching_index<t_csa, t_wt, t_bv>& idx, const std::string& file, 
 
     {
         auto event = memory_monitor::event("compose"); // contains rank support initialization
-        idx = std::move(matching_index<t_csa, t_wt, t_bv>(csa, wts, bv));
+        idx = std::move(matching_index<t_csa, t_wt, t_bv>(text, csa, wts, bv));
     }
 }
 
