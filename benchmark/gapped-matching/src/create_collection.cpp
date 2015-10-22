@@ -67,8 +67,7 @@ int main(int argc, const char* argv[])
     utils::create_directory(args.collection_dir+"/patterns");
     utils::create_directory(args.collection_dir+"/results");
 
-    if (args.num_bytes == 1)
-    {
+    if (args.num_bytes == 1) {
         /* (3) check if input file exists */
         std::ifstream ifs(args.input_file,std::ios::binary);
         if (!ifs) {
@@ -86,7 +85,7 @@ int main(int argc, const char* argv[])
         }
         {
             for (size_t i=0; i<buf.size(); ++i) {
-                if (buf[i] == '\n' or buf[i] == '\r' or buf[i] == '\f')
+                if (buf[i] == 0 or buf[i] == '\n' or buf[i] == '\r' or buf[i] == '\f')
                     buf[i] = ' ';
             }
             gm_timer tm("BIT COMPRESS",true);
@@ -96,9 +95,7 @@ int main(int argc, const char* argv[])
         LOG(INFO) << "num_syms = " << buf.size();
         LOG(INFO) << "log2(sigma) = " << (int) buf.width();
         LOG(INFO) << "text size = " << (buf.width()*buf.size())/(8*1024*1024) << " MiB";
-    }
-    else // handle integer alphabets
-    {
+    } else { // handle integer alphabets
         sdsl::int_vector<> buf;
         if (!sdsl::load_vector_from_file(buf, args.input_file, args.num_bytes)) {
             LOG(FATAL) << "Error opening input file '" << args.input_file << "'";

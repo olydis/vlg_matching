@@ -78,12 +78,12 @@ int main(int argc, char** argv)
             // check length
             if (depth >= length) {
                 // check for word boundary (approximation)
-                if (human_readable 
-                    && !is_special_char(cst.csa.L[cst.rb(v)])
-                    && !is_special_char(cst.csa.L[cst.lb(v)])) {
-                    it.skip_subtree();
-                    continue;
-                }
+                /* if (human_readable
+                     && !is_special_char(cst.csa.L[cst.rb(v)])
+                     && !is_special_char(cst.csa.L[cst.lb(v)])) {
+                     it.skip_subtree();
+                     continue;
+                 }*/
 
                 found.emplace(curr_occ, phrase);
                 if (found.size() > count)
