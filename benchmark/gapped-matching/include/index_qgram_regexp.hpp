@@ -92,7 +92,9 @@ class index_qgram_regexp
             written_bytes += qids.serialize(out,child,"qgram mapping");
             written_bytes += m_list_data.serialize(out,child,"qgram lists");
             sdsl::structure_tree::add_size(child, written_bytes);
-            return written_bytes;
+
+            out << m_text;
+            return written_bytes + m_text.size();
         }
 
         void load(std::istream& in)
@@ -104,6 +106,8 @@ class index_qgram_regexp
             }
             m_list_data.load(in);
             m_list_strm.refresh(); // ugly but necessary for now
+
+            m_text = text_type(std::istreambuf_iterator<char>(in), {});
         }
 
         void swap(index_qgram_regexp& ir)
