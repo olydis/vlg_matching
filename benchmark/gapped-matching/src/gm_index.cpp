@@ -61,6 +61,8 @@ template <class t_idx> void create_and_store(collection& col)
 
 int main(int argc, const char* argv[])
 {
+    sdsl::construct_config::byte_algo_sa = sdsl::SE_SAIS;
+
     log::start_log(argc, argv, false);
 
     /* parse command line */

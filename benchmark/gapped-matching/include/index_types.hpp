@@ -6,4 +6,5 @@
 #include "index_wcsearch_full.hpp"
 #include "index_wcsearch_bfs.hpp"
 #include "index_dbsearch.hpp"
+#include "index_sasearch.hpp"
 #include "index_qgram_regexp.hpp"

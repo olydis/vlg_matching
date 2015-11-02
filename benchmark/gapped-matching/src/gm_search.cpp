@@ -71,21 +71,22 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     timing_results t;
     string total_info = "";
     for (const auto& pat : patterns) {
-        // give index a chance to output relevant 
+        // give index a chance to output relevant
         // information about the upcoming query
         total_info += "," + idx.info(pat);
-        
+
         // let index perform text-INDEPENDENT work
         gm_timer tm_prep("PAT_PREP");
         idx.prepare(pat);
         auto dur_prep = tm_prep.elapsed();
         t_prep.add_timing(dur_prep);
-        
+
         // perform search
         gm_timer tm("PAT_SEARCH");
         auto res = idx.search(pat);
         auto dur = tm.elapsed();
         t.add_timing(dur);
+        std::cout << "TIMING = " << duration_cast<microseconds>(dur).count() << std::endl;
 
         /* compute checksum */
         for (const auto& pos : res.positions) {
@@ -104,11 +105,11 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     /* output stats */
     auto ts = t.summary();
     auto ts_prep = t_prep.summary();
-    
+
     LOG(INFO) << "SUMMARY";
     LOG(INFO) << " num_patterns = " << t.timings.size();
     LOG(INFO) << " checksum = " << checksum;
-    
+
     LOG(INFO) << " total_time_mus = " << duration_cast<microseconds>(ts.total).count();
     LOG(INFO) << " min_time_mus = " << duration_cast<microseconds>(ts.min).count();
     LOG(INFO) << " qrt_1st_time_mus = " << duration_cast<microseconds>(ts.qrt_1st).count();
@@ -128,7 +129,7 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     std::cout << "# median_time_mus = " << duration_cast<microseconds>(ts.median).count() << std::endl;
     std::cout << "# qrt_3rd_time_mus = " << duration_cast<microseconds>(ts.qrt_3rd).count() << std::endl;
     std::cout << "# max_time_mus = " << duration_cast<microseconds>(ts.max).count() << std::endl;
-    
+
     std::cout << "# prep_total_time_mus = " << duration_cast<microseconds>(ts_prep.total).count() << std::endl;
     std::cout << "# prep_min_time_mus = " << duration_cast<microseconds>(ts_prep.min).count() << std::endl;
     std::cout << "# prep_qrt_1st_time_mus = " << duration_cast<microseconds>(ts_prep.qrt_1st).count() << std::endl;
@@ -140,6 +141,7 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
 
 int main(int argc, const char* argv[])
 {
+    sdsl::construct_config::byte_algo_sa = sdsl::SE_SAIS;
     log::start_log(argc, argv, false);
 
     /* parse command line */
