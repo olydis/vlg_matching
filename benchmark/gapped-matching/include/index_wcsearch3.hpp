@@ -7,6 +7,72 @@
 
 #include <boost/regex.hpp>
 
+
+template<class type_index>
+class wavelet_tree_range_walker
+{
+    private:
+        typedef shared_ptr<sdsl::node_cache<type_index>> node_type;
+        const type_index& index;
+        stack<pair<sdsl::range_type,node_type>> dfs_stack;
+
+    public:
+        typedef decltype(dfs_stack) state_type;
+        wavelet_tree_range_walker(const type_index& index, sdsl::range_type initial_range, node_type root_node)
+            : index(index)
+        {
+            dfs_stack.emplace(initial_range, root_node);
+        }
+
+        void restore_state(const state_type& state)
+        {
+            dfs_stack = state;
+        }
+        state_type save_state()
+        {
+            return dfs_stack;
+        }
+
+        bool has_more() const
+        {
+            return !dfs_stack.empty();
+        }
+
+        node_type current_node() const
+        {
+            return dfs_stack.top().second;
+        }
+
+        void skip_subtree()
+        {
+            dfs_stack.pop();
+        }
+
+        void expand()
+        {
+            auto top = dfs_stack.top(); dfs_stack.pop();
+            auto& node = top.second;
+            node->ensure_children();
+            auto exp_range = index.wt.expand(node->node, top.first);
+            if (!sdsl::empty(exp_range[1]))
+                dfs_stack.emplace(exp_range[1], node->children.second);
+            if (!sdsl::empty(exp_range[0]))
+                dfs_stack.emplace(exp_range[0], node->children.first);
+        }
+
+        // performs one DFS step, retrieving a leaf or nullptr
+        node_type retrieve_leaf_and_traverse()
+        {
+            node_type node = current_node();
+            if (node->is_leaf) {
+                skip_subtree();
+                return node;
+            }
+            expand();
+            return nullptr;
+        }
+};
+
 template<class type_index>
 class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag, array<typename type_index::size_type, 3>>
 {
@@ -36,38 +102,38 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
                 const auto& top1 = lex_ranges[1].current_node();
                 const auto& top2 = lex_ranges[2].current_node();
                 if (top1->range_end_doc < top2->range_begin_doc)
-                    lex_ranges[1].next();
+                    lex_ranges[1].skip_subtree();
                 else if (top0->range_end_doc < top1->range_begin_doc)
-                    lex_ranges[0].next();
+                    lex_ranges[0].skip_subtree();
 
-                else if (top1->range_end + p2.max_gap < top2->range_begin)
-                    lex_ranges[1].next();
-                else if (top1->range_begin + p2.min_gap > top2->range_end)
-                    lex_ranges[2].next();
+                else if (top1->range_end + max_gap < top2->range_begin)
+                    lex_ranges[1].skip_subtree();
+                else if (top1->range_begin + min_gap > top2->range_end)
+                    lex_ranges[2].skip_subtree();
 
-                else if (top0->range_end + p1.max_gap < top1->range_begin)
-                    lex_ranges[0].next();
-                else if (top0->range_begin + p1.min_gap > top1->range_end)
-                    lex_ranges[1].next();
+                else if (top0->range_end + max_gap < top1->range_begin)
+                    lex_ranges[0].skip_subtree();
+                else if (top0->range_begin + min_gap > top1->range_end)
+                    lex_ranges[1].skip_subtree();
 
                 else if (top0->is_leaf && top1->is_leaf && top2->is_leaf) {
                     a = top0->range_begin;
                     auto doc = top0->range_end_doc;
 
                     if (c != 0 && a <= c) {
-                        lex_ranges[0].next();
+                        lex_ranges[0].skip_subtree();
                         continue;
                     }
 
                     b = top1->range_begin;
                     c = top2->range_begin;
 
-                    lex_ranges[1].next();
-                    lex_ranges[2].next();
+                    lex_ranges[1].skip_subtree();
+                    lex_ranges[2].skip_subtree();
 
                     // push c forward
                     while (lex_ranges[2].has_more()
-                           && b + p2.max_gap >= lex_ranges[2].current_node()->range_begin
+                           && b + max_gap >= lex_ranges[2].current_node()->range_begin
                            && doc == lex_ranges[2].current_node()->range_begin_doc) {
                         auto leaf = lex_ranges[2].retrieve_leaf_and_traverse();
                         if (leaf != nullptr)
@@ -79,18 +145,18 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
 
                     // push b forward
                     while (lex_ranges[1].has_more()
-                           && a + p1.max_gap >= lex_ranges[1].current_node()->range_begin
+                           && a + max_gap >= lex_ranges[1].current_node()->range_begin
                            && doc == lex_ranges[1].current_node()->range_begin_doc) {
                         auto leaf = lex_ranges[1].retrieve_leaf_and_traverse();
                         if (leaf != nullptr) {
                             auto b_temp = leaf->range_begin;
 
-                            if (b_temp + p2.min_gap <= c)
+                            if (b_temp + min_gap <= c)
                                 b = b_temp;
 
                             // push c forward
                             while (lex_ranges[2].has_more()
-                                   && b_temp + p2.max_gap >= lex_ranges[2].current_node()->range_begin
+                                   && b_temp + max_gap >= lex_ranges[2].current_node()->range_begin
                                    && doc == lex_ranges[2].current_node()->range_begin_doc) {
                                 auto leaf = lex_ranges[2].retrieve_leaf_and_traverse();
                                 if (leaf != nullptr) {
@@ -107,13 +173,13 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
                     // pull a forward
                     while (valid() &&
                            lex_ranges[0].current_node()->range_end <= c)
-                        lex_ranges[0].next();
+                        lex_ranges[0].skip_subtree();
 
 
                     current = { a, b, c };
                     return true;
                 } else
-                    lex_ranges[top1->range_size() >= top0->range_size() ? (top2->range_size() >= top1->range_size() ? 2 : 1) : (top2->range_size() >= top0->range_size() ? 2 : 0)].split();
+                    lex_ranges[top1->range_size() >= top0->range_size() ? (top2->range_size() >= top1->range_size() ? 2 : 1) : (top2->range_size() >= top0->range_size() ? 2 : 0)].expand();
             }
 
             current = { 0, 0, 0 };
@@ -126,24 +192,24 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
             current = { 0, 0, 0 };
         }
         wild_card_match_iterator3(const type_index& index,
-                                  string s1,
-                                  string s2,
-                                  string s3,
+                                  string_type s1,
+                                  string_type s2,
+                                  string_type s3,
                                   size_t min_gap,
                                   size_t max_gap)
             : min_gap(min_gap), max_gap(max_gap)
         {
-            auto root_node = make_shared<node_cache<type_index>>(index.wt.root(), index, nullptr, nullptr);
+            auto root_node = make_shared<sdsl::node_cache<type_index>>(index.wt.root(), index, nullptr, nullptr);
             size_type sp = 1, ep = 0;
 
-            backward_search(index.csa, 0, index.csa.size()-1, s1.begin(), s1.end(), sp, ep);
-            lex_ranges.emplace_back(index, range_type(sp, ep),root_node);
+            forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s1.begin(), s1.end(), sp, ep);
+            lex_ranges.emplace_back(index, sdsl::range_type(sp, ep),root_node);
 
-            backward_search(index.csa, 0, index.csa.size()-1, s2.begin(), s2.end(), sp, ep);
-            lex_ranges.emplace_back(index, range_type(sp, ep),root_node);
+            forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s2.begin(), s2.end(), sp, ep);
+            lex_ranges.emplace_back(index, sdsl::range_type(sp, ep),root_node);
 
-            backward_search(index.csa, 0, index.csa.size()-1, s3.begin(), s3.end(), sp, ep);
-            lex_ranges.emplace_back(index, range_type(sp, ep),root_node);
+            forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s3.begin(), s3.end(), sp, ep);
+            lex_ranges.emplace_back(index, sdsl::range_type(sp, ep),root_node);
 
             next();
         }
@@ -171,15 +237,15 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
         }
 
         friend bool operator==(
-            const wild_card_match_iterator& a,
-            const wild_card_match_iterator& b)
+            const wild_card_match_iterator3& a,
+            const wild_card_match_iterator3& b)
         {
             return a.current == b.current;
         }
 
         friend bool operator!=(
-            const wild_card_match_iterator& a,
-            const wild_card_match_iterator& b)
+            const wild_card_match_iterator3& a,
+            const wild_card_match_iterator3& b)
         {
             return !(a == b);
         }
@@ -270,11 +336,11 @@ class index_wcsearch3
             }
 
             // smart scan
-            auto container = matching_container<iterator>(
-                                 wild_card_match_iterator3<index_type>(*this, s1, s2, s3, min_gap, max_gap),
+            auto container = sdsl::matching_container<wild_card_match_iterator3<index_type>>(
+                                 wild_card_match_iterator3<index_type>(index, s1, s2, s3, min_gap, max_gap),
                                  wild_card_match_iterator3<index_type>());
             for (auto hit : container) {
-                res.positions.push_back(hit.first);
+                res.positions.push_back(std::get<0>(hit));
             }
             return res;
         }

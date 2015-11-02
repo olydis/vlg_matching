@@ -24,7 +24,7 @@ struct gapped_pattern {
     std::vector<std::pair<uint64_t,uint64_t>> gaps;
     gapped_pattern(const std::string& p, bool string_patterns) : raw_regexp(p)
     {
-        auto parse_subpattern = [&](std::string s) { 
+        auto parse_subpattern = [&](std::string s) {
             if (string_patterns) {
                 return string_type(s.begin(), s.end());
             } else {
@@ -36,6 +36,10 @@ struct gapped_pattern {
                 return subpattern;
             }
         };
+
+        // HACK: add third pattern
+        auto gap_index = raw_regexp.find(".");
+        raw_regexp += raw_regexp.substr(gap_index);
 
         sdsl_regexp.resize(raw_regexp.size());
         for (size_t i=0; i<raw_regexp.size(); i++) {
