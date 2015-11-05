@@ -38,8 +38,8 @@ struct gapped_pattern {
         };
 
         // HACK: add third pattern
-        auto gap_index = raw_regexp.find(".");
-        raw_regexp += raw_regexp.substr(gap_index);
+        //auto gap_index = raw_regexp.find(".");
+        //raw_regexp += raw_regexp.substr(gap_index);
 
         sdsl_regexp.resize(raw_regexp.size());
         for (size_t i=0; i<raw_regexp.size(); i++) {

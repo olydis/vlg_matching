@@ -77,116 +77,148 @@ class index_wcsearch_bfs
             vector<node_type> nodes;
             nodes.push_back(wts.root());
             size_type sp = 1, ep = 0;
-            if ( forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s1.begin(), s1.end(), sp, ep) > 0 )
+            if (forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s1.begin(), s1.end(), sp, ep) > 0)
                 lex_ranges[0].emplace_back(range_type(sp, ep),0);
             else
                 nodes.clear();
-            if ( forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s2.begin(), s2.end(), sp, ep) > 0 )
+            if (forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s2.begin(), s2.end(), sp, ep) > 0)
                 lex_ranges[1].emplace_back(range_type(sp,ep),0);
             else
                 nodes.clear();
 
             cnt_nodes += nodes.size();
 
-            auto _lb = [&lex_ranges, &nodes, &wts](size_type k, size_type i){
-                return get<0>( wts.value_range(nodes[lex_ranges[k][i].second]) );
+            auto _lb = [&lex_ranges, &nodes, &wts](size_type k, size_type i) {
+                return get<0>(wts.value_range(nodes[lex_ranges[k][i].second]));
             };
 
-            auto _rb = [&lex_ranges, &nodes, &wts](size_type k, size_type i){
-                return get<1>( wts.value_range(nodes[lex_ranges[k][i].second]) );
+            auto _rb = [&lex_ranges, &nodes, &wts](size_type k, size_type i) {
+                return get<1>(wts.value_range(nodes[lex_ranges[k][i].second]));
             };
-                
-            while ( !nodes.empty() ) {
-                   
-                /*auto _output = [&nodes, &lex_ranges, &wts](size_t k){
-                    cout<<">>>>>>>> k="<<k<<endl;
-                    for (size_t i=0; i<lex_ranges[k].size(); ++i) {
-                        auto pos_range = wts.value_range(nodes[lex_ranges[k][i].second]);
-                        auto range = lex_ranges[k][i].first;
-                        cout << "i = "<<i<<" range=["<<get<0>(range)<<","<<get<1>(range)<<"] "; 
-                        cout <<  "pos_range=["<<get<0>(pos_range) << "," << get<1>(pos_range)<<"]"<<endl;
-                    }
-                };
-                  
-                cout<<"_nodes.size()="<<nodes.size()<<endl;
-                cout<<"_lex_ranges[0].size()="<<lex_ranges[0].size()<<std::endl;
-                _output(0);
-                cout<<"_lex_ranges[1].size()="<<lex_ranges[1].size()<<std::endl;
-                _output(1);*/
 
-
-
-                if ( wts.is_leaf(nodes[0]) )
+            while (!nodes.empty()) {
+                if (wts.is_leaf(nodes[0]))
                     break;
                 vector<node_type> _nodes;
                 array<vector<pair<range_type,size_t>>, 2> _lex_ranges;
                 std::array<decltype(lex_ranges[0].begin()),2> lex_range_it = {lex_ranges[0].begin(), lex_ranges[1].begin()};
-                for (size_t i=0; i<nodes.size(); ++i){
+                for (size_t i=0; i<nodes.size(); ++i) {
                     auto exp_node = wts.expand(nodes[i]);
                     _nodes.push_back(exp_node[0]);
                     _nodes.push_back(exp_node[1]);
-                    for (size_t j=0; j<2; ++j){
-                        if (lex_range_it[j] != lex_ranges[j].end() and lex_range_it[j]->second == i){
+                    for (size_t j=0; j<2; ++j) {
+                        if (lex_range_it[j] != lex_ranges[j].end() and lex_range_it[j]->second == i) {
                             auto exp_range = wts.expand(nodes[i], lex_range_it[j]->first);
                             ++lex_range_it[j];
-                            for (size_t k=0; k<2; ++k){
-                                if ( !sdsl::empty(exp_range[k]) ){
-    //cout<<"k="<<k<<" exp_range["<<k<<"]=["<<get<0>(exp_range[k])<<","<<get<1>(exp_range[k])<<"]"<<endl;
-                                    _lex_ranges[j].emplace_back(exp_range[k], _nodes.size()-2+k);    
-                                }     
+                            for (size_t k=0; k<2; ++k) {
+                                if (!sdsl::empty(exp_range[k])) {
+                                    _lex_ranges[j].emplace_back(exp_range[k], _nodes.size()-2+k);
+                                }
                             }
                         }
                     }
                 }
                 cnt_nodes += _nodes.size();
                 nodes = std::move(_nodes);
-                lex_ranges = std::move(_lex_ranges); 
+                lex_ranges = std::move(_lex_ranges);
 
                 // filtering
                 size_t n0 = 0, n1 = 0;
-                for (size_t i=0,j=0; i<lex_ranges[0].size(); ++i){
-                    while ( j < lex_ranges[1].size() and _rb(1,j) < _lb(0,i)+s1.size()+min_gap ) {
+                for (size_t i=0,j=0; i<lex_ranges[0].size(); ++i) {
+                    while (j < lex_ranges[1].size() and _rb(1,j) < _lb(0,i)+s1.size()+min_gap) {
                         ++j;
                     }
-                    if ( j < lex_ranges[1].size() and _lb(1,j) <= _rb(0,i)+s1.size()+max_gap ){
+                    if (j < lex_ranges[1].size() and _lb(1,j) <= _rb(0,i)+s1.size()+max_gap) {
                         // lex_ranges[0][i] overlaps lex_ranges[1][j]
                         lex_ranges[0][n0++] = lex_ranges[0][i];
                     }
                 }
                 lex_ranges[0].resize(n0);
-                for(size_t i=0,j=0; j<lex_ranges[1].size(); ++j){
-                    while ( i < lex_ranges[0].size() and _lb(0,n0-i-1)+s1.size()+min_gap > _rb(1,lex_ranges[1].size()-j-1) ){
+                for (size_t i=0,j=0; j<lex_ranges[1].size(); ++j) {
+                    while (i < lex_ranges[0].size() and _lb(0,n0-i-1)+s1.size()+min_gap > _rb(1,lex_ranges[1].size()-j-1)) {
                         ++i;
                     }
-                    if ( i < lex_ranges[0].size() and _lb(1,lex_ranges[1].size()-j-1) <= _rb(0,n0-i-1)+s1.size()+max_gap ) {
+                    if (i < lex_ranges[0].size() and _lb(1,lex_ranges[1].size()-j-1) <= _rb(0,n0-i-1)+s1.size()+max_gap) {
                         lex_ranges[1][lex_ranges[1].size()-n1-1] = lex_ranges[1][lex_ranges[1].size()-j-1];
                         ++n1;
                     }
                 }
-                for(size_t j=0; j<n1; ++j){
+                for (size_t j=0; j<n1; ++j) {
                     lex_ranges[1][j] = lex_ranges[1][lex_ranges[1].size()-n1+j];
                 }
                 lex_ranges[1].resize(n1);
                 // remove unused nodes
                 n0 = 0;
-                for (size_t k=0, i=0, j=0; k<nodes.size(); ++k){
+                for (size_t k=0, i=0, j=0; k<nodes.size(); ++k) {
                     bool occurs = false;
-                    if ( i < lex_ranges[0].size() and lex_ranges[0][i].second == k ){
+                    if (i < lex_ranges[0].size() and lex_ranges[0][i].second == k) {
                         occurs = true;
                         lex_ranges[0][i++].second = n0;
                     }
-                    if ( j < lex_ranges[1].size() and lex_ranges[1][j].second == k ){
+                    if (j < lex_ranges[1].size() and lex_ranges[1][j].second == k) {
                         occurs = true;
                         lex_ranges[1][j++].second = n0;
                     }
-                    if ( occurs ) {
-                        nodes[n0++] = nodes[k];            
+                    if (occurs) {
+                        nodes[n0++] = nodes[k];
                     }
                 }
                 nodes.resize(n0);
             }
 
-            for(size_t i = 0; i < lex_ranges[0].size(); ++i) {
+            // GREEDY
+            vector<size_type> range_a;
+            vector<size_type> range_b;
+            for (size_t i = 0; i < lex_ranges[0].size(); ++i)
+                range_a.push_back(get<0>(wts.value_range(nodes[lex_ranges[0][i].second])));
+            for (size_t i = 0; i < lex_ranges[1].size(); ++i)
+                range_b.push_back(get<0>(wts.value_range(nodes[lex_ranges[1][i].second])));
+
+            std::sort(range_a.begin(), range_a.end());
+            std::sort(range_b.begin(), range_b.end());
+
+            // linear search
+            auto a_it = range_a.begin();
+            auto b_it = range_b.begin();
+
+            while (a_it != range_a.end()) {
+                auto a_pos = *a_it;
+
+                // enforcing min_gap
+                bool b_valid;
+                while ((b_valid = (b_it != range_b.end())) && a_pos + min_gap > *b_it)
+                    ++b_it;
+                if (!b_valid)
+                    break;
+
+                // check whether within max_gap
+                auto b_pos = *b_it;
+                if (a_pos + max_gap < b_pos) {
+                    ++a_it;
+                    continue;
+                }
+
+                // push greedy beyond max_gap
+                ++b_it;
+                while (b_it != range_b.end()) {
+                    auto b_pos2 = *b_it;
+                    if (a_pos + max_gap >= b_pos2)
+                        b_pos = b_pos2;
+                    else
+                        break;
+                    ++b_it;
+                }
+
+                res.positions.push_back(a_pos);
+
+                // pull a beyond previous b (non-overlapping)
+                b_pos += s2.size();
+                while (a_it != range_a.end() && *a_it < b_pos)
+                    ++a_it;
+            }
+
+            // ALL
+            /*for(size_t i = 0; i < lex_ranges[0].size(); ++i) {
                 auto pos0 = _lb(0,i);
                 for(size_t j = 0; j < lex_ranges[1].size(); ++j) {
                     auto pos1 = _lb(1,j);
@@ -194,7 +226,7 @@ class index_wcsearch_bfs
                      && pos0 + s1.size() + max_gap >= pos1)
                         res.positions.push_back(pos0);
                 }
-            }
+            }*/
             cout << "Processed nodes: " << cnt_nodes << " (" <<wts.size() << ")" << endl;
 
             return res;

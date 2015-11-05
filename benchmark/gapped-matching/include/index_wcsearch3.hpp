@@ -335,6 +335,35 @@ class index_wcsearch3
                 // (this is an important concept, as it allows single-term matching by setting min/max_gap=0)
             }
 
+            // linear scan?
+            if (text.size() > 0) {
+                index_type::size_type total_range = 0, sp = 0, ep = 0;
+                for (size_t i = 0; i < pat.subpatterns.size(); ++i)
+                    total_range += forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, pat.subpatterns[i].begin(), pat.subpatterns[i].end(), sp, ep);
+
+                // check for: |range| * log n > n
+                std::cout << "range = " << total_range << "; |text| = " << text.size() << std::endl;
+                total_range *= sdsl::bits::hi(text.size());
+                total_range *= CONST_LINEAR_THRESH;
+                std::cout << total_range << " > " << text.size() << " ==> " << (total_range > text.size()) << std::endl;
+
+                if (total_range > text.size()) {
+                    // linear scan
+                    auto rx = boost::regex(pat.raw_regexp.begin(),pat.raw_regexp.end(),std::regex::ECMAScript);
+                    auto matches_begin = boost::sregex_iterator(
+                                             text.begin(),
+                                             text.end(),
+                                             rx,
+                                             boost::regex_constants::match_flag_type::match_not_dot_newline);
+                    auto matches_end = boost::sregex_iterator();
+
+                    for (boost::sregex_iterator it = matches_begin; it != matches_end; ++it) {
+                        res.positions.push_back(it->position());
+                    }
+                    return res;
+                }
+            }
+
             // smart scan
             auto container = sdsl::matching_container<wild_card_match_iterator3<index_type>>(
                                  wild_card_match_iterator3<index_type>(index, s1, s2, s3, min_gap, max_gap),
