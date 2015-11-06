@@ -51,9 +51,9 @@ class index_wcsearch_bfs
         gapped_search_result
         search(const gapped_pattern& pat) const
         {
-            auto wts = index.wt;
-            using node_type = decltype(wts)::node_type;
-            using size_type = decltype(wts)::size_type;
+            const auto& wts = index.wt;
+            using node_type = remove_reference<decltype(wts)>::type::node_type;
+            using size_type = remove_reference<decltype(wts)>::type::size_type;
             using range_type = sdsl::range_type;
 
             gapped_search_result res;
@@ -167,66 +167,69 @@ class index_wcsearch_bfs
             }
 
             // GREEDY
-            vector<size_type> range_a;
-            vector<size_type> range_b;
-            for (size_t i = 0; i < lex_ranges[0].size(); ++i)
-                range_a.push_back(get<0>(wts.value_range(nodes[lex_ranges[0][i].second])));
-            for (size_t i = 0; i < lex_ranges[1].size(); ++i)
-                range_b.push_back(get<0>(wts.value_range(nodes[lex_ranges[1][i].second])));
+            /*            min_gap += s1.size();
+                        max_gap += s1.size();
 
-            std::sort(range_a.begin(), range_a.end());
-            std::sort(range_b.begin(), range_b.end());
+                        vector<size_type> range_a;
+                        vector<size_type> range_b;
+                        for (size_t i = 0; i < lex_ranges[0].size(); ++i)
+                            range_a.push_back(get<0>(wts.value_range(nodes[lex_ranges[0][i].second])));
+                        for (size_t i = 0; i < lex_ranges[1].size(); ++i)
+                            range_b.push_back(get<0>(wts.value_range(nodes[lex_ranges[1][i].second])));
 
-            // linear search
-            auto a_it = range_a.begin();
-            auto b_it = range_b.begin();
+                        std::sort(range_a.begin(), range_a.end());
+                        std::sort(range_b.begin(), range_b.end());
 
-            while (a_it != range_a.end()) {
-                auto a_pos = *a_it;
+                        // linear search
+                        auto a_it = range_a.begin();
+                        auto b_it = range_b.begin();
 
-                // enforcing min_gap
-                bool b_valid;
-                while ((b_valid = (b_it != range_b.end())) && a_pos + min_gap > *b_it)
-                    ++b_it;
-                if (!b_valid)
-                    break;
+                        while (a_it != range_a.end()) {
+                            auto a_pos = *a_it;
 
-                // check whether within max_gap
-                auto b_pos = *b_it;
-                if (a_pos + max_gap < b_pos) {
-                    ++a_it;
-                    continue;
-                }
+                            // enforcing min_gap
+                            bool b_valid;
+                            while ((b_valid = (b_it != range_b.end())) && a_pos + min_gap > *b_it)
+                                ++b_it;
+                            if (!b_valid)
+                                break;
 
-                // push greedy beyond max_gap
-                ++b_it;
-                while (b_it != range_b.end()) {
-                    auto b_pos2 = *b_it;
-                    if (a_pos + max_gap >= b_pos2)
-                        b_pos = b_pos2;
-                    else
-                        break;
-                    ++b_it;
-                }
+                            // check whether within max_gap
+                            auto b_pos = *b_it;
+                            if (a_pos + max_gap < b_pos) {
+                                ++a_it;
+                                continue;
+                            }
 
-                res.positions.push_back(a_pos);
+                            // push greedy beyond max_gap
+                            ++b_it;
+                            while (b_it != range_b.end()) {
+                                auto b_pos2 = *b_it;
+                                if (a_pos + max_gap >= b_pos2)
+                                    b_pos = b_pos2;
+                                else
+                                    break;
+                                ++b_it;
+                            }
 
-                // pull a beyond previous b (non-overlapping)
-                b_pos += s2.size();
-                while (a_it != range_a.end() && *a_it < b_pos)
-                    ++a_it;
-            }
+                            res.positions.push_back(a_pos);
 
+                            // pull a beyond previous b (non-overlapping)
+                            b_pos += s2.size();
+                            while (a_it != range_a.end() && *a_it < b_pos)
+                                ++a_it;
+                        }
+            */
             // ALL
-            /*for(size_t i = 0; i < lex_ranges[0].size(); ++i) {
+            for (size_t i = 0; i < lex_ranges[0].size(); ++i) {
                 auto pos0 = _lb(0,i);
-                for(size_t j = 0; j < lex_ranges[1].size(); ++j) {
+                for (size_t j = 0; j < lex_ranges[1].size(); ++j) {
                     auto pos1 = _lb(1,j);
                     if (pos0 + s1.size() + min_gap <= pos1
-                     && pos0 + s1.size() + max_gap >= pos1)
+                        && pos0 + s1.size() + max_gap >= pos1)
                         res.positions.push_back(pos0);
                 }
-            }*/
+            }
             cout << "Processed nodes: " << cnt_nodes << " (" <<wts.size() << ")" << endl;
 
             return res;
