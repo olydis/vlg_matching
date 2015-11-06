@@ -1,0 +1,30 @@
+# COLL_ID = KERNEL
+# PATT_SAMPLE = TC5
+# ALGO = WCSEARCH_DFS
+Processed nodes: 192675
+Processed nodes: 202354
+Processed nodes: 843002
+Processed nodes: 843477
+Processed nodes: 183311
+Processed nodes: 237027
+Processed nodes: 13991
+Processed nodes: 165417
+Processed nodes: 1224726
+Processed nodes: 31591
+# info =,182331,189783,192156,193488,203761,235806,242821,278853,476575,788030
+# num_results = 68745
+# checksum = 70167160269957
+# total_time_mus = 2328848
+# min_time_mus = 8961
+# qrt_1st_time_mus = 99740
+# mean_time_mus = 232884
+# median_time_mus = 126940
+# qrt_3rd_time_mus = 486730
+# max_time_mus = 673134
+# prep_total_time_mus = 47791189
+# prep_min_time_mus = 4719632
+# prep_qrt_1st_time_mus = 4721559
+# prep_mean_time_mus = 4779118
+# prep_median_time_mus = 4774246
+# prep_qrt_3rd_time_mus = 4841865
+# prep_max_time_mus = 4868100

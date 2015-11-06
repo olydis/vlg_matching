@@ -1,0 +1,30 @@
+# COLL_ID = ENGLISH
+# PATT_SAMPLE = TC7
+# ALGO = QGRAM_REGEXP_ECMA
+search(Spain______________________.{16,64}ntarctica__________________)
+search(tarctica___________________.{16,64}Canada_____________________)
+search(donesia____________________.{16,64}reece______________________)
+search(ssia_______________________.{16,64}Antarctica_________________)
+search(India______________________.{16,64}Japan______________________)
+search(Philippines________________.{16,64}ussia______________________)
+search(Greece_____________________.{16,64}onaphthylmethanedisulphonic)
+search(Russia_____________________.{16,64}ndonesia___________________)
+search(Indonesia__________________.{16,64}000000000000000000000000000)
+search(XXXXXXXXXXXXXXXXXXXXXXXXXXX.{16,64}___________________________)
+# info =,,,,,,,,,,
+# num_results = 0
+# checksum = 0
+# total_time_mus = 599648
+# min_time_mus = 3659
+# qrt_1st_time_mus = 4416
+# mean_time_mus = 59964
+# median_time_mus = 10033
+# qrt_3rd_time_mus = 10222
+# max_time_mus = 534775
+# prep_total_time_mus = 1568
+# prep_min_time_mus = 148
+# prep_qrt_1st_time_mus = 150
+# prep_mean_time_mus = 156
+# prep_median_time_mus = 151
+# prep_qrt_3rd_time_mus = 152
+# prep_max_time_mus = 206

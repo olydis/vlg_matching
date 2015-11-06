@@ -1,0 +1,30 @@
+# COLL_ID = ENGLISH
+# PATT_SAMPLE = TC3
+# ALGO = WCSEARCH_DFS
+Processed nodes: 150895
+Processed nodes: 857960
+Processed nodes: 195372
+Processed nodes: 157201
+Processed nodes: 169187
+Processed nodes: 226072
+Processed nodes: 1174045
+Processed nodes: 158795
+Processed nodes: 1453077
+Processed nodes: 4524
+# info =,143032,149474,157852,161286,172883,202735,217902,227491,269618,415330
+# num_results = 111
+# checksum = 117304405775
+# total_time_mus = 2841554
+# min_time_mus = 4341
+# qrt_1st_time_mus = 106843
+# mean_time_mus = 284155
+# median_time_mus = 135944
+# qrt_3rd_time_mus = 533321
+# max_time_mus = 862994
+# prep_total_time_mus = 47265211
+# prep_min_time_mus = 4721739
+# prep_qrt_1st_time_mus = 4723269
+# prep_mean_time_mus = 4726521
+# prep_median_time_mus = 4726616
+# prep_qrt_3rd_time_mus = 4726754
+# prep_max_time_mus = 4733991

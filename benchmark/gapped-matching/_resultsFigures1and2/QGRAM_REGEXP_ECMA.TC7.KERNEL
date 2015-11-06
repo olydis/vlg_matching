@@ -1,0 +1,30 @@
+# COLL_ID = KERNEL
+# PATT_SAMPLE = TC7
+# ALGO = QGRAM_REGEXP_ECMA
+search(PCIBIOS_BAD_REGISTER_NUMBER.{16,64}proc_array_inode_operations)
+search(XXXXXXXXXXXXXXXXXXXXXXXXXXX.{16,64}boundDoorBellRegisterOffset)
+search(CONFIG_IP_TRANSPARENT_PROXY.{16,64}OSS_DOCUMENTED_MIXER_SEMANT)
+search(SS_DOCUMENTED_MIXER_SEMANTI.{16,64}S_DOCUMENTED_MIXER_SEMANTIC)
+search(_DOCUMENTED_MIXER_SEMANTICS.{16,64}register_netdevice_notifier)
+search(xpds_write_control_register.{16,64}0irq_spin_unlock_irqrestore)
+search(390irq_spin_unlock_irqresto.{16,64}90irq_spin_unlock_irqrestor)
+search(s390irq_spin_unlock_irqrest.{16,64}erruptible_sleep_on_timeout)
+search(interruptible_sleep_on_time.{16,64}nterruptible_sleep_on_timeo)
+search(terruptible_sleep_on_timeou.{16,64}___________________________)
+# info =,,,,,,,,,,
+# num_results = 242
+# checksum = 268431625472
+# total_time_mus = 658732
+# min_time_mus = 13977
+# qrt_1st_time_mus = 33181
+# mean_time_mus = 65873
+# median_time_mus = 42282
+# qrt_3rd_time_mus = 51973
+# max_time_mus = 289665
+# prep_total_time_mus = 1615
+# prep_min_time_mus = 152
+# prep_qrt_1st_time_mus = 153
+# prep_mean_time_mus = 161
+# prep_median_time_mus = 156
+# prep_qrt_3rd_time_mus = 159
+# prep_max_time_mus = 213

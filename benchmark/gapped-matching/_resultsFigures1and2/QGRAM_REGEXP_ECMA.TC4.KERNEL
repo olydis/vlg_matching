@@ -1,0 +1,30 @@
+# COLL_ID = KERNEL
+# PATT_SAMPLE = TC4
+# ALGO = QGRAM_REGEXP_ECMA
+search(formation.{16,64}controlle)
+search(_interrup.{16,64}ore_flags)
+search(store_fla.{16,64}tore_flag)
+search(estore_fl.{16,64}restore_f)
+search(nterrupts.{16,64}base_addr)
+search(structure.{16,64}Copyright)
+search(_________.{16,64}interface)
+search(operation.{16,64}ontroller)
+search(x00000000.{16,64}0x0000000)
+search(000000000.{16,64}interrupt)
+# info =,,,,,,,,,,
+# num_results = 46983
+# checksum = 55344365592871
+# total_time_mus = 67222949
+# min_time_mus = 1830290
+# qrt_1st_time_mus = 1964992
+# mean_time_mus = 6722294
+# median_time_mus = 2060925
+# qrt_3rd_time_mus = 2849643
+# max_time_mus = 26658743
+# prep_total_time_mus = 1618
+# prep_min_time_mus = 151
+# prep_qrt_1st_time_mus = 155
+# prep_mean_time_mus = 161
+# prep_median_time_mus = 159
+# prep_qrt_3rd_time_mus = 160
+# prep_max_time_mus = 202

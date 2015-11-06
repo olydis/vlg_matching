@@ -1,0 +1,29 @@
+# COLL_ID = DNA
+# PATT_SAMPLE = TC4
+# ALGO = WCSEARCH_DFS
+Processed nodes: 773931
+Processed nodes: 781391
+Processed nodes: 791185
+Processed nodes: 2328978
+Processed nodes: 725150
+Processed nodes: 912494
+Processed nodes: 1518277
+Processed nodes: 282454
+Processed nodes: 347097
+# info =,679897,686924,689535,691244,692762,784342,901517,950464,1053117,5403171
+# num_results = 37111
+# checksum = 40787436114593
+# total_time_mus = 42690197
+# min_time_mus = 196887
+# qrt_1st_time_mus = 522506
+# mean_time_mus = 4269019
+# median_time_mus = 552114
+# qrt_3rd_time_mus = 881946
+# max_time_mus = 37234863
+# prep_total_time_mus = 56665276
+# prep_min_time_mus = 5574497
+# prep_qrt_1st_time_mus = 5625342
+# prep_mean_time_mus = 5666527
+# prep_median_time_mus = 5677100
+# prep_qrt_3rd_time_mus = 5741089
+# prep_max_time_mus = 5743874

@@ -1,0 +1,30 @@
+# COLL_ID = DNA
+# PATT_SAMPLE = TC1
+# ALGO = QGRAM_REGEXP_ECMA
+search(TGA.{16,64}TCA)
+search(AAG.{16,64}TTC)
+search(GAA.{16,64}ACA)
+search(CTT.{16,64}TAT)
+search(ATA.{16,64}TGT)
+search(TTA.{16,64}CTG)
+search(TAA.{16,64}CAG)
+search(TCT.{16,64}AGA)
+search(AAT.{16,64}ATT)
+search(AAA.{16,64}TTT)
+# info =,,,,,,,,,,
+# num_results = 139471795
+# checksum = 151444851769811904
+# total_time_mus = 8376681698
+# min_time_mus = 598536725
+# qrt_1st_time_mus = 690775246
+# mean_time_mus = 837668169
+# median_time_mus = 773508752
+# qrt_3rd_time_mus = 792011655
+# max_time_mus = 1654475684
+# prep_total_time_mus = 1491
+# prep_min_time_mus = 144
+# prep_qrt_1st_time_mus = 146
+# prep_mean_time_mus = 149
+# prep_median_time_mus = 147
+# prep_qrt_3rd_time_mus = 149
+# prep_max_time_mus = 166

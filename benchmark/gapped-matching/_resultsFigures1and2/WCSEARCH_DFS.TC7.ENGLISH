@@ -1,0 +1,30 @@
+# COLL_ID = ENGLISH
+# PATT_SAMPLE = TC7
+# ALGO = WCSEARCH_DFS
+Processed nodes: 47
+Processed nodes: 54
+Processed nodes: 38
+Processed nodes: 62
+Processed nodes: 63
+Processed nodes: 51
+Processed nodes: 6
+Processed nodes: 73
+Processed nodes: 3
+Processed nodes: 9
+# info =,24,25,26,27,28,28,31,35,120,142111
+# num_results = 0
+# checksum = 0
+# total_time_mus = 14091
+# min_time_mus = 970
+# qrt_1st_time_mus = 1301
+# mean_time_mus = 1409
+# median_time_mus = 1444
+# qrt_3rd_time_mus = 1562
+# max_time_mus = 2015
+# prep_total_time_mus = 47214622
+# prep_min_time_mus = 4718230
+# prep_qrt_1st_time_mus = 4719312
+# prep_mean_time_mus = 4721462
+# prep_median_time_mus = 4719451
+# prep_qrt_3rd_time_mus = 4721560
+# prep_max_time_mus = 4729910

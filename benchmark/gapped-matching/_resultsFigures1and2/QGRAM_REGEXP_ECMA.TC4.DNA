@@ -1,0 +1,30 @@
+# COLL_ID = DNA
+# PATT_SAMPLE = TC4
+# ALGO = QGRAM_REGEXP_ECMA
+search(GCTGGGATT.{16,64}GAGGCTGAG)
+search(CTCAGCCTC.{16,64}CTGTAATCC)
+search(GGATTACAG.{16,64}CCTGTAATC)
+search(GATTACAGG.{16,64}GGGATTACA)
+search(TAATCCCAG.{16,64}CTGGGATTA)
+search(CCAGCCTGG.{16,64}CCAGGCTGG)
+search(ATATATATA.{16,64}TATATATAT)
+search(CACACACAC.{16,64}GTGTGTGTG)
+search(ACACACACA.{16,64}TGTGTGTGT)
+search(AAAAAAAAA.{16,64}TTTTTTTTT)
+# info =,,,,,,,,,,
+# num_results = 37111
+# checksum = 40787436114593
+# total_time_mus = 414108627
+# min_time_mus = 10627013
+# qrt_1st_time_mus = 10824424
+# mean_time_mus = 41410862
+# median_time_mus = 12226923
+# qrt_3rd_time_mus = 39103052
+# max_time_mus = 247132396
+# prep_total_time_mus = 1616
+# prep_min_time_mus = 151
+# prep_qrt_1st_time_mus = 155
+# prep_mean_time_mus = 161
+# prep_median_time_mus = 160
+# prep_qrt_3rd_time_mus = 163
+# prep_max_time_mus = 185

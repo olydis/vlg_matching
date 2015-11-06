@@ -1,0 +1,30 @@
+# COLL_ID = ENGLISH
+# PATT_SAMPLE = TC5
+# ALGO = QGRAM_REGEXP_ECMA
+search(continued.{256,1024}everythin)
+search(particula.{256,1024}articular)
+search(condition.{256,1024}necessary)
+search(verything.{256,1024}knowledge)
+search(difficult.{256,1024}beautiful)
+search(therefore.{256,1024}different)
+search(understan.{256,1024}nderstand)
+search(overnment.{256,1024}character)
+search(themselve.{256,1024}hemselves)
+search(something.{256,1024}_________)
+# info =,,,,,,,,,,
+# num_results = 42545
+# checksum = 46080277938867
+# total_time_mus = 301246969
+# min_time_mus = 20061880
+# qrt_1st_time_mus = 23572639
+# mean_time_mus = 30124696
+# median_time_mus = 28283940
+# qrt_3rd_time_mus = 36978996
+# max_time_mus = 50362136
+# prep_total_time_mus = 25966
+# prep_min_time_mus = 2567
+# prep_qrt_1st_time_mus = 2581
+# prep_mean_time_mus = 2596
+# prep_median_time_mus = 2602
+# prep_qrt_3rd_time_mus = 2617
+# prep_max_time_mus = 2619
