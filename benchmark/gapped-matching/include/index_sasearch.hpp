@@ -5,14 +5,11 @@
 #include "sdsl/suffix_arrays.hpp"
 #include "sdsl/matching.hpp"
 
-// implements double binary search
 class index_sasearch
 {
     private:
-        typedef sdsl::matching_index<sdsl::wt_int<>, sdsl::rrr_vector<>> index_type;
-        index_type index;
-        typedef std::pair<index_type::size_type, index_type::size_type> range_type;
-        typedef std::pair<range_type, range_type> double_range_type;
+        sdsl::int_vector<> m_text;
+        sdsl::int_vector<> m_sa;
 
     public:
         typedef sdsl::int_vector<0>::size_type size_type;
@@ -27,23 +24,35 @@ class index_sasearch
         index_sasearch(collection& col)
         {
             sdsl::cache_config cc(false,".","SASEARCH_TMP");
-            sdsl::construct(index, col.file_map[consts::KEY_TEXT], cc, 0);
+
+            sdsl::load_from_file(m_text, col.file_map[consts::KEY_TEXT]);
+
+            sdsl::csa_wt<sdsl::wt_huff<>, 1> csa;
+            sdsl::construct(csa, col.file_map[consts::KEY_TEXT], cc, 0);
+            m_sa = sdsl::int_vector<>(csa.size(), 0, sdsl::bits::hi(csa.size() - 1) + 1);
+            std::copy(csa.begin(), csa.end(), m_sa.begin());
         }
 
         size_type serialize(std::ostream& out, sdsl::structure_tree_node* v=NULL, std::string name="")const
         {
-            return index.serialize(out, v, name);
+            auto size = m_sa.serialize(out, v, "sa");
+            size += m_text.serialize(out, v, "text");
+            return size;
         }
 
         void load(std::istream& in)
         {
-            index.load(in);
+            m_sa.load(in);
+            m_text.load(in);
+            std::cerr << m_sa.size() << std::endl;
+            std::cerr << m_text.size() << std::endl;
         }
 
         void swap(index_sasearch& ir)
         {
             if (this != &ir) {
-                index.swap(ir.index);
+                m_sa.swap(ir.m_sa);
+                m_text.swap(ir.m_text);
             }
         }
 
@@ -72,10 +81,13 @@ class index_sasearch
             // get ranges
             size_type sp1, ep1;
             size_type sp2, ep2;
-            vector<size_type> range_a(forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s1.begin(), s1.end(), sp1, ep1));
-            vector<size_type> range_b(forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s2.begin(), s2.end(), sp2, ep2));
-            std::copy(index.wt.begin() + sp1, index.wt.begin() + ep1 + 1, range_a.begin());
-            std::copy(index.wt.begin() + sp2, index.wt.begin() + ep2 + 1, range_b.begin());
+            std::cout << forward_search(m_text.begin(), m_text.end(), m_sa, 0, m_sa.size()-1, s1.begin(), s1.end(), sp1, ep1) << std::endl;
+            std::cout << sp1 << std::endl;
+            std::cout << ep1 << std::endl;
+            vector<size_type> range_a(forward_search(m_text.begin(), m_text.end(), m_sa, 0, m_sa.size()-1, s1.begin(), s1.end(), sp1, ep1));
+            vector<size_type> range_b(forward_search(m_text.begin(), m_text.end(), m_sa, 0, m_sa.size()-1, s2.begin(), s2.end(), sp2, ep2));
+            std::copy(m_sa.begin() + sp1, m_sa.begin() + ep1 + 1, range_a.begin());
+            std::copy(m_sa.begin() + sp2, m_sa.begin() + ep2 + 1, range_b.begin());
             std::sort(range_a.begin(), range_a.end());
             std::sort(range_b.begin(), range_b.end());
 
