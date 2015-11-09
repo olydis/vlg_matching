@@ -71,6 +71,15 @@ class wavelet_tree_range_walker
             expand();
             return nullptr;
         }
+
+        node_type next_leaf()
+        {
+            if (has_more() && current_node()->is_leaf)
+                skip_subtree();
+            while (has_more() && !current_node()->is_leaf)
+                expand();
+            return has_more() ? current_node() : nullptr;
+        }
 };
 
 template<class type_index>
@@ -89,6 +98,8 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
         size_t b = 0;
         size_t c = 0;
 
+        size_t size3;
+
         size_t min_gap;
         size_t max_gap;
 
@@ -101,82 +112,79 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
                 const auto& top0 = lex_ranges[0].current_node();
                 const auto& top1 = lex_ranges[1].current_node();
                 const auto& top2 = lex_ranges[2].current_node();
-                if (top1->range_end_doc < top2->range_begin_doc)
+                if (top1->range_end + max_gap < top2->range_begin) {
                     lex_ranges[1].skip_subtree();
-                else if (top0->range_end_doc < top1->range_begin_doc)
-                    lex_ranges[0].skip_subtree();
-
-                else if (top1->range_end + max_gap < top2->range_begin)
-                    lex_ranges[1].skip_subtree();
-                else if (top1->range_begin + min_gap > top2->range_end)
+                } else if (top1->range_begin + min_gap > top2->range_end) {
                     lex_ranges[2].skip_subtree();
+                }
 
-                else if (top0->range_end + max_gap < top1->range_begin)
+                else if (top0->range_end + max_gap < top1->range_begin) {
                     lex_ranges[0].skip_subtree();
-                else if (top0->range_begin + min_gap > top1->range_end)
+                } else if (top0->range_begin + min_gap > top1->range_end) {
                     lex_ranges[1].skip_subtree();
+                }
 
                 else if (top0->is_leaf && top1->is_leaf && top2->is_leaf) {
                     a = top0->range_begin;
-                    auto doc = top0->range_end_doc;
-
-                    if (c != 0 && a <= c) {
-                        lex_ranges[0].skip_subtree();
-                        continue;
-                    }
-
                     b = top1->range_begin;
                     c = top2->range_begin;
 
-                    lex_ranges[1].skip_subtree();
-                    lex_ranges[2].skip_subtree();
+
 
                     // push c forward
-                    while (lex_ranges[2].has_more()
-                           && b + max_gap >= lex_ranges[2].current_node()->range_begin
-                           && doc == lex_ranges[2].current_node()->range_begin_doc) {
-                        auto leaf = lex_ranges[2].retrieve_leaf_and_traverse();
-                        if (leaf != nullptr)
-                            c = leaf->range_begin;
+                    while (lex_ranges[2].next_leaf() != nullptr
+                           && b + max_gap >= lex_ranges[2].current_node()->range_begin) {
+                        c = lex_ranges[2].current_node()->range_begin;
                     }
 
-                    auto state1 = lex_ranges[1].save_state();
-                    auto state2 = lex_ranges[2].save_state();
+                    //----------
+                    while (lex_ranges[1].next_leaf() != nullptr) {
+                        auto b_pos2 = lex_ranges[1].current_node();
+                        if (a + max_gap >= b_pos2->range_begin) {
+                            b = b_pos2->range_begin;
+                            // situation: found greedier ab ==> check c
 
-                    // push b forward
-                    while (lex_ranges[1].has_more()
-                           && a + max_gap >= lex_ranges[1].current_node()->range_begin
-                           && doc == lex_ranges[1].current_node()->range_begin_doc) {
-                        auto leaf = lex_ranges[1].retrieve_leaf_and_traverse();
-                        if (leaf != nullptr) {
-                            auto b_temp = leaf->range_begin;
+                            // enforcing min_gap bc
+                            bool c_valid;
+                            if (b + min_gap > lex_ranges[2].current_node()->range_begin)
+                                while ((c_valid = lex_ranges[2].next_leaf() != nullptr) && b + min_gap > lex_ranges[2].current_node()->range_begin)
+                                    ;
+                            if (!c_valid)
+                                break;
 
-                            if (b_temp + min_gap <= c)
-                                b = b_temp;
-
-                            // push c forward
-                            while (lex_ranges[2].has_more()
-                                   && b_temp + max_gap >= lex_ranges[2].current_node()->range_begin
-                                   && doc == lex_ranges[2].current_node()->range_begin_doc) {
-                                auto leaf = lex_ranges[2].retrieve_leaf_and_traverse();
-                                if (leaf != nullptr) {
-                                    b = b_temp;
-                                    c = leaf->range_begin;
-                                }
+                            // check whether within max_gap bc
+                            if (b + max_gap < lex_ranges[2].current_node()->range_begin) {
+                                continue;
                             }
-                        }
-                    }
+                            c = lex_ranges[2].current_node()->range_begin;
 
-                    lex_ranges[1].restore_state(state1);
-                    lex_ranges[2].restore_state(state2);
+                            // situation: bc still valid
+
+                            // push c greedy beyond max_gap
+                            lex_ranges[2].skip_subtree();
+                            while (lex_ranges[2].next_leaf() != nullptr) {
+                                auto c_pos2 = lex_ranges[2].current_node();
+                                if (b + max_gap >= c_pos2->range_begin)
+                                    c = c_pos2->range_begin;
+                                else
+                                    break;
+                                lex_ranges[2].skip_subtree();
+                            }
+                        } else
+                            break;
+                        lex_ranges[1].skip_subtree();
+                    }
+                    //--------
+
+                    current = { a, b, c };
 
                     // pull a forward
                     while (valid() &&
                            lex_ranges[0].current_node()->range_end <= c)
                         lex_ranges[0].skip_subtree();
+                    while (lex_ranges[0].next_leaf() != nullptr && lex_ranges[0].current_node()->range_begin <= c + size3)
+                        ;
 
-
-                    current = { a, b, c };
                     return true;
                 } else
                     lex_ranges[top1->range_size() >= top0->range_size() ? (top2->range_size() >= top1->range_size() ? 2 : 1) : (top2->range_size() >= top0->range_size() ? 2 : 0)].expand();
@@ -197,19 +205,30 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
                                   string_type s3,
                                   size_t min_gap,
                                   size_t max_gap)
-            : min_gap(min_gap), max_gap(max_gap)
+            : min_gap(min_gap), max_gap(max_gap), size3(s3.size())
         {
             auto root_node = make_shared<sdsl::node_cache<type_index>>(index.wt.root(), index, nullptr, nullptr);
             size_type sp = 1, ep = 0;
 
             forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s1.begin(), s1.end(), sp, ep);
             lex_ranges.emplace_back(index, sdsl::range_type(sp, ep),root_node);
+            //std::cerr << "1 ::: " << sp << "-" << ep << std::endl;
+            //std::cerr << "REGEX ::: " << (char)index.text[index.wt[sp]] << (char)index.text[index.wt[sp] + 1] << std::endl;
+            //std::cerr << "REGEX ::: " << (char)index.text[index.wt[ep]] << (char)index.text[index.wt[ep] + 1] << std::endl;
 
             forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s2.begin(), s2.end(), sp, ep);
             lex_ranges.emplace_back(index, sdsl::range_type(sp, ep),root_node);
+            //std::cerr << "2 ::: " << sp << "-" << ep << std::endl;
+            //std::cerr << "REGEX ::: " << (char)index.text[index.wt[sp]] << (char)index.text[index.wt[sp] + 1] << std::endl;
+            //std::cerr << "REGEX ::: " << (char)index.text[index.wt[ep]] << (char)index.text[index.wt[ep] + 1] << std::endl;
 
             forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, s3.begin(), s3.end(), sp, ep);
             lex_ranges.emplace_back(index, sdsl::range_type(sp, ep),root_node);
+            //std::cerr << "3 ::: " << sp << "-" << ep << std::endl;
+            //std::cerr << "REGEX ::: " << (char)index.text[index.wt[sp]] << (char)index.text[index.wt[sp] + 1] << std::endl;
+            //std::cerr << "REGEX ::: " << (char)index.text[index.wt[ep]] << (char)index.text[index.wt[ep] + 1] << std::endl;
+
+            //std::cerr << "GAP ::: " << min_gap << "-" << max_gap << std::endl;
 
             next();
         }
@@ -319,6 +338,8 @@ class index_wcsearch3
             size_type min_gap;
             size_type max_gap;
 
+            std::cerr << "REGEX ::: " << pat.raw_regexp << std::endl;
+
             if (pat.subpatterns.size() < 3) {
                 s1 = pat.subpatterns[0];
                 s2 = pat.subpatterns[0];
@@ -342,10 +363,10 @@ class index_wcsearch3
                     total_range += forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, pat.subpatterns[i].begin(), pat.subpatterns[i].end(), sp, ep);
 
                 // check for: |range| * log n > n
-                std::cout << "range = " << total_range << "; |text| = " << text.size() << std::endl;
+                //std::cout << "range = " << total_range << "; |text| = " << text.size() << std::endl;
                 total_range *= sdsl::bits::hi(text.size());
                 total_range *= CONST_LINEAR_THRESH;
-                std::cout << total_range << " > " << text.size() << " ==> " << (total_range > text.size()) << std::endl;
+                //std::cout << total_range << " > " << text.size() << " ==> " << (total_range > text.size()) << std::endl;
 
                 if (total_range > text.size()) {
                     // linear scan
