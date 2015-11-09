@@ -8,7 +8,7 @@ TMP_DIR = ../tmp
 .SECONDARY:
 
 TC_IDS:=$(call config_ids,test_case.config)
-TC_COLLECTIONS:=$(foreach TC_ID,$(TC_IDS),collections/$(TC_ID)/text.TEXT)
+TC_COLLECTIONS:=#$(foreach TC_ID,$(TC_IDS),collections/$(TC_ID)/text.TEXT)
 UNIQUE_DATA_FILES:=$(shell echo $(call config_column,test_case.config,2) | tr " " "\n" | uniq | tr "\n" " ")
 TEMP_DATA_FILE:=build/_tmp.raw
 
@@ -18,7 +18,7 @@ UNIQUE_SP_LENGTHS:=$(shell echo $(call config_column,patterns.config,2) | tr " "
 ALGOS:=$(call config_ids,algorithms.config)
 
 GM_WORDS = $(foreach TC_ID,$(TC_IDS),$(foreach SP_LENGTH,$(UNIQUE_SP_LENGTHS),collections/$(TC_ID)/patterns/words.$(TC_ID).$(SP_LENGTH).words.txt))
-GM_PATTERNS = $(foreach TC_ID,$(TC_IDS),$(foreach PATTERN_ID,$(PATTERN_IDS),collections/$(TC_ID)/patterns/regex.$(TC_ID).$(PATTERN_ID).regex.txt))
+GM_PATTERNS = #$(foreach TC_ID,$(TC_IDS),$(foreach PATTERN_ID,$(PATTERN_IDS),collections/$(TC_ID)/patterns/regex.$(TC_ID).$(PATTERN_ID).regex.txt))
 GM_EXECS = $(foreach ALGO,$(ALGOS),build/gm_index-$(ALGO).x) \
            $(foreach ALGO,$(ALGOS),build/gm_search-$(ALGO).x) \
            build/create_collection.x
