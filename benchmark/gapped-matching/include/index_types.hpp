@@ -1,6 +1,6 @@
 #pragma once
 
-#define NUM_PATTERNS 15
+#define NUM_PATTERNS 10
 
 #include "index_regexp.hpp"
 //#include "index_regexp_boost.hpp"

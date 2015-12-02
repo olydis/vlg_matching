@@ -119,10 +119,11 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
                         if (!lex_ranges[i].has_more())
                             break;
                     }
-                }
+                }  
 
                 if (skip)
                     continue;
+
                 size_t r = 1;
                 size_t j;
                 skip = false;
@@ -150,14 +151,14 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
                 }
             }
 
-            current = 0;
+            current = (result_type)-1;
             return false;
         }
 
     public:
         wild_card_match_iterator3()
         {
-            current = 0;
+            current = (result_type)-1;
         }
         wild_card_match_iterator3(const type_index& index,
                                   vector<string_type>& s,
@@ -171,6 +172,7 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
             for (auto sx : s) {
                 forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, sx.begin(), sx.end(), sp, ep);
                 lex_ranges.emplace_back(index, sdsl::range_type(sp, ep), root_node);
+std::cerr << std::string(sx.begin(), sx.end()) << ": " << sp << " " << ep << std::endl;
             }
 
             next();
