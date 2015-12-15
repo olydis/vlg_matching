@@ -5,16 +5,68 @@
 #include "sdsl/matching.hpp"
 #include "sdsl/suffix_arrays.hpp"
 
-#include <boost/regex.hpp>
+template<typename T>
+using st_ptr = __shared_ptr<T, __gnu_cxx::_S_single>;
 
+template<class type_index>
+struct node_cache {
+    typedef typename type_index::node_type node_type;
+    typedef typename type_index::size_type size_type;
+
+    const type_index& index;
+    node_type node;
+    pair<st_ptr<node_cache>, st_ptr<node_cache>> children { nullptr, nullptr };
+    size_type range_begin;
+    size_type range_end;
+    size_type range_begin_doc;
+    size_type range_end_doc;
+    bool is_leaf;
+
+    size_type range_size()
+    {
+        return range_end - range_begin;
+    }
+
+    node_cache(
+        node_type node,
+        const type_index& index,
+        size_type* range_begin_doc,
+        size_type* range_end_doc)
+        : index(index)
+    {
+        this->node = node;
+        auto range = index.wt.value_range(node);
+        this->range_begin = get<0>(range);
+        this->range_end = get<1>(range);
+        this->range_begin_doc =
+            range_begin_doc == nullptr ? index.get_document_index(range_begin) : *range_begin_doc;
+        this->range_end_doc =
+            range_end_doc == nullptr ? index.get_document_index(range_end) : *range_end_doc;
+        this->is_leaf = index.wt.is_leaf(node);
+    }
+
+    void ensure_children()
+    {
+        if (children.first == nullptr) {
+            size_type* range_begin_doc = &this->range_begin_doc;
+            size_type* range_center_doc = this->range_begin_doc == this->range_end_doc ? range_begin_doc : nullptr;
+            size_type* range_end_doc = &this->range_end_doc;
+
+            auto children = index.wt.expand(node);
+            this->children = make_pair(
+                                 st_ptr<node_cache>(new node_cache(children[0], index, range_begin_doc, range_center_doc)),
+                                 st_ptr<node_cache>(new node_cache(children[1], index, range_center_doc, range_end_doc)));
+        }
+    }
+};
 
 template<class type_index>
 class wavelet_tree_range_walker
 {
     private:
-        typedef shared_ptr<sdsl::node_cache<type_index>> node_type;
+        typedef st_ptr<node_cache<type_index>> node_type;
         const type_index& index;
-        stack<pair<sdsl::range_type,node_type>> dfs_stack;
+        stack<pair<sdsl::range_type,node_type>, vector<pair<sdsl::range_type,node_type>>> dfs_stack;
 
     public:
         typedef decltype(dfs_stack) state_type;
@@ -166,7 +218,7 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
                                   size_t max_gap)
             : min_gap(min_gap), max_gap(max_gap), size3(s[s.size() - 1].size())
         {
-            auto root_node = make_shared<sdsl::node_cache<type_index>>(index.wt.root(), index, nullptr, nullptr);
+            auto root_node = st_ptr<node_cache<type_index>>(new node_cache<type_index>(index.wt.root(), index, nullptr, nullptr));
             size_type sp = 1, ep = 0;
 
             for (auto sx : s) {
