@@ -9,10 +9,10 @@ What is it?
 The Succinct Data Structure Library (SDSL) is a powerful and flexible C++11
 library implementing succinct data structures. In total, the library contains
 the highlights of 40 [research publications][SDSLLIT]. Succinct data structures
-can represent an object (such as a bitvector or a tree) in space close the
+can represent an object (such as a bitvector or a tree) in space close to the
 information-theoretic lower bound of the object while supporting operations
 of the original object efficiently. The theoretical time complexity of an
-operations performed on the classical data structure and the equivalent
+operation performed on the classical data structure and the equivalent
 succinct data structure are (most of the time) identical.
 
 Why SDSL?
@@ -77,6 +77,8 @@ and features provided by the library. Specifically we provide
 
 * A [cheat sheet][SDSLCS] which succinctly
 describes the usage of the library.
+* An doxygen generated [API reference][DOXYGENDOCS] which lists all types and functions
+of the library.
 * A set of [example](examples/) programs demonstrating how different features
 of the library are used.
 * A tutorial [presentation][TUT] with the [example code](tutorial/) using in the
@@ -227,8 +229,8 @@ We have included the code of two excellent suffix array
 construction algorithms.
 
 * Yuta Mori's incredible fast suffix [libdivsufsort][DIVSUF]
-  algorithm (version 2.0.1) for byte-alphabets.
-* An adapted version of [Jesper Larsson's][JESL] [implementation][QSUFIMPL] of 
+  algorithm for byte-alphabets.
+* An adapted version of [Jesper Larsson's][JESL] [implementation][QSUFIMPL] of
   suffix array sorting on integer-alphabets (description of [Larsson and Sadakane][LS]).
 
 Additionally, we use the [googletest][GTEST] framework to provide unit tests.
@@ -259,7 +261,7 @@ Kalle Karhu,
 Jan Kurrus,
 [Shanika Kuruppu](https://github.com/skuruppu),
 Jouni Siren,
-and [Julio Vizcaino](https://github.com/garviz) 
+and [Julio Vizcaino](https://github.com/garviz)
 for bug reports.
 
 Contribute
@@ -278,7 +280,7 @@ Feel free to contact any of the authors or create an issue on the
 [cmake]: http://www.cmake.org/ "CMake tool"
 [MAKE]: http://www.gnu.org/software/make/ "GNU Make"
 [gcc]: http://gcc.gnu.org/ "GNU Compiler Collection"
-[DIVSUF]: http://code.google.com/p/libdivsufsort/ "libdivsufsort"
+[DIVSUF]: https://github.com/y-256/libdivsufsort/ "libdivsufsort"
 [LS]: http://www.sciencedirect.com/science/article/pii/S0304397507005257 "Larson &amp; Sadakane Algorithm"
 [GTEST]: https://code.google.com/p/googletest/ "Google C++ Testing Framework"
 [SDSLCS]: http://simongog.github.io/assets/data/sdsl-cheatsheet.pdf "SDSL Cheat Sheet"
@@ -289,3 +291,4 @@ Feel free to contact any of the authors or create an issue on the
 [CF]: https://github.com/simongog/sdsl-lite/blob/master/COPYING "Licence"
 [SEAPAPER]: http://arxiv.org/pdf/1311.1249v1.pdf "SDSL paper"
 [HB]: https://github.com/simongog/sdsl-lite/blob/hybrid_bitvector/include/sdsl/hybrid_vector.hpp "Hybrid bitevctor"
+[DOXYGENDOCS]: http://algo2.iti.kit.edu/gog/docs/html/index.html "API Reference"

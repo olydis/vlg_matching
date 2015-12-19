@@ -259,9 +259,20 @@ typename t_csa::size_type backward_search(
 )
 {
     assert(l <= r); assert(r < csa.size());
-    typename t_csa::size_type c_begin = csa.C[csa.char2comp[c]];
-    l_res = c_begin + csa.bwt.rank(l, c); // count c in bwt[0..l-1]
-    r_res = c_begin + csa.bwt.rank(r+1, c) - 1; // count c in bwt[0..r]
+    typename t_csa::size_type cc = csa.char2comp[c];
+    if (cc == 0 and c > 0) {
+        l_res = 1;
+        r_res = 0;
+    } else {
+        typename t_csa::size_type c_begin = csa.C[cc];
+        if (l == 0 and r+1 == csa.size()) {
+            l_res = c_begin;
+            r_res = csa.C[cc+1] - 1;
+        } else {
+            l_res = c_begin + csa.bwt.rank(l, c); // count c in bwt[0..l-1]
+            r_res = c_begin + csa.bwt.rank(r+1, c) - 1; // count c in bwt[0..r]
+        }
+    }
     assert(r_res+1-l_res >= 0);
     return r_res+1-l_res;
 }
@@ -428,7 +439,7 @@ typename csa_wt<>::size_type bidirectional_search_backward(
  * The function requires a pattern \f$p\f$, an \f$\omega\f$-interval \f$[l_fwd..r_fwd]\f$ in the CSA object
  * of the forward text and an \f$\omega^{rev}\f$-interval \f$[l_bwd..r_bwd]\f$ in the CSA object of the backward text.
  * The function returns the \f$\omega p\f$-interval in the CSA object of the forward text and
- * the \f$\p^{rev}omega^{rev}\f$-interval in the CSA object of the backward text.
+ * the \f$p^{rev}omega^{rev}\f$-interval in the CSA object of the backward text.
  *
  * \tparam t_pat_iter Pattern iterator type.
  *

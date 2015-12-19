@@ -190,7 +190,7 @@ bool load_vector_from_file(int_vector<t_w>& v, const std::string& file, uint8_t 
         }
     } else if (num_bytes == 'd') {
         uint64_t x = 0, max_x = 0;
-        isfstream in(file);
+        isfstream in(file, std::ios::in | std::ios::binary);
         if (!in) {
             return false;
         } else {
@@ -216,7 +216,7 @@ bool load_vector_from_file(int_vector<t_w>& v, const std::string& file, uint8_t 
                                    +"\" is not a multiple of "+util::to_string(num_bytes));
             return false;
         }
-        isfstream in(file);
+        isfstream in(file, std::ios::in | std::ios::binary);
         if (in) {
             v.width(std::min((int)8*num_bytes, (int)max_int_width));
             v.resize(file_size / num_bytes);
@@ -276,7 +276,7 @@ bool store_to_file(const int_vector<t_width>& v, const std::string& file, bool w
 template<class int_type, class t_int_vec>
 bool store_to_plain_array(t_int_vec& v, const std::string& file)
 {
-    osfstream out(file);
+    osfstream out(file, std::ios::out | std::ios::binary);
     if (out) {
         for (typename t_int_vec::size_type i=0; i<v.size(); ++i) {
             int_type x = v[i];
@@ -368,6 +368,7 @@ void load_vector(std::vector<T>& vec, std::istream& in)
     }
 }
 
+
 template<format_type F, typename X>
 void write_structure(const X& x, std::ostream& out)
 {
@@ -379,6 +380,13 @@ void write_structure(const X& x, std::ostream& out)
             sdsl::write_structure_tree<F>(child.second.get(), out);
         }
     }
+}
+
+template<format_type F, typename X>
+void write_structure(const X& x, std::string file)
+{
+    std::ofstream out(file);
+    write_structure<F>(x, out);
 }
 
 template<format_type F, typename... Xs>
@@ -691,6 +699,8 @@ bool store_to_checked_file(const T& t, const std::string& file)
 }
 
 bool store_to_file(const char* v, const std::string& file);
+
+bool store_to_file(const std::string& v, const std::string& file);
 
 template<uint8_t t_width>
 bool store_to_file(const int_vector<t_width>& v, const std::string& file, bool write_fixed_as_variable)
