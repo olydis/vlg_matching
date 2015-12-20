@@ -116,6 +116,49 @@ class wt_int
             m_path_rank_off = int_vector<64>(max_level+1);
         }
 
+        // recursive internal version of the method interval_symbols
+        void _interval_symbols(size_type i, size_type j, size_type& k,
+                               std::vector<value_type>& cs,
+                               std::vector<size_type>& rank_c_i,
+                               std::vector<size_type>& rank_c_j,
+                               size_type level,
+                               size_type path,
+                               size_type node_size,
+                               size_type offset) const
+        {
+            // invariant: j>i
+
+            if (level >= m_max_level) {
+                rank_c_i[k]= i;
+                rank_c_j[k]= j;
+                cs[k++]= path;
+                return;
+            }
+
+            size_type ones_before_o = m_tree_rank(offset);
+            size_type ones_before_i = m_tree_rank(offset+i) - ones_before_o;
+            size_type ones_before_j = m_tree_rank(offset+j) - ones_before_o;
+            size_type ones_before_end = m_tree_rank(offset+ node_size) - ones_before_o;
+
+            // goto left child
+            if ((j-i)-(ones_before_j-ones_before_i)>0) {
+                size_type new_offset = offset + m_size;
+                size_type new_node_size = node_size - ones_before_end;
+                size_type new_i = i - ones_before_i;
+                size_type new_j = j - ones_before_j;
+                _interval_symbols(new_i, new_j, k, cs, rank_c_i, rank_c_j, level+1, path<<1, new_node_size, new_offset);
+            }
+
+            // goto right child
+            if ((ones_before_j-ones_before_i)>0) {
+                size_type new_offset = offset+(node_size - ones_before_end) + m_size;
+                size_type new_node_size = ones_before_end;
+                size_type new_i = ones_before_i;
+                size_type new_j = ones_before_j;
+                _interval_symbols(new_i, new_j, k, cs, rank_c_i, rank_c_j, level+1, (path<<1)|1, new_node_size, new_offset);
+            }
+        }
+
     public:
 
         const size_type&       sigma = m_sigma;         //!< Effective alphabet size of the wavelet tree.
@@ -452,6 +495,50 @@ class wt_int
             return i-1;
         };
 
+        //! For each symbol c in wt[i..j-1] get rank(i,c) and rank(j,c).
+        /*!
+         * \param i        The start index (inclusive) of the interval.
+         * \param j        The end index (exclusive) of the interval.
+         * \param k        Reference for number of different symbols in [i..j-1].
+         * \param cs       Reference to a vector that will contain in
+         *                 cs[0..k-1] all symbols that occur in [i..j-1] in
+         *                 ascending order.
+         * \param rank_c_i Reference to a vector which equals
+         *                 rank_c_i[p] = rank(i,cs[p]), for \f$ 0 \leq p < k \f$.
+         * \param rank_c_j Reference to a vector which equals
+         *                 rank_c_j[p] = rank(j,cs[p]), for \f$ 0 \leq p < k \f$.
+         * \par Time complexity
+         *      \f$ \Order{\min{\sigma, k \log \sigma}} \f$
+         *
+         * \par Precondition
+         *      \f$ i \leq j \leq size() \f$
+         *      \f$ cs.size() \geq \sigma \f$
+         *      \f$ rank_{c_i}.size() \geq \sigma \f$
+         *      \f$ rank_{c_j}.size() \geq \sigma \f$
+         */
+        void interval_symbols(size_type i, size_type j, size_type& k,
+                              std::vector<value_type>& cs,
+                              std::vector<size_type>& rank_c_i,
+                              std::vector<size_type>& rank_c_j) const
+        {
+            assert(i <= j and j <= size());
+            k=0;
+            if (i==j) {
+                return;
+            }
+            if ((i+1)==j) {
+                auto res = inverse_select(i);
+                cs[0]=res.second;
+                rank_c_i[0]=res.first;
+                rank_c_j[0]=res.first+1;
+                k=1;
+                return;
+            }
+
+            _interval_symbols(i, j, k, cs, rank_c_i, rank_c_j, 0, 0, m_size, 0);
+
+        }
+
         //! How many symbols are lexicographic smaller/greater than c in [i..j-1].
         /*!
          * \param i       Start index (inclusive) of the interval.
@@ -553,8 +640,8 @@ class wt_int
         range_search_2d(size_type lb, size_type rb, value_type vlb, value_type vrb,
                         bool report=true) const
         {
-            size_type offsets[m_max_level+1];
-            size_type ones_before_os[m_max_level+1];
+            std::vector<size_type> offsets(m_max_level+1);
+            std::vector<size_type> ones_before_os(m_max_level+1);
             offsets[0] = 0;
             if (vrb > (1ULL << m_max_level))
                 vrb = (1ULL << m_max_level);
@@ -568,8 +655,8 @@ class wt_int
 
         void
         _range_search_2d(size_type lb, size_type rb, value_type vlb, value_type vrb, size_type level,
-                         size_type ilb, size_type node_size, size_type offsets[],
-                         size_type ones_before_os[], size_type path,
+                         size_type ilb, size_type node_size, std::vector<size_type>& offsets,
+                         std::vector<size_type>& ones_before_os, size_type path,
                          point_vec_type& point_vec, bool report, size_type& cnt_answers)
         const
         {
@@ -736,16 +823,7 @@ class wt_int
         //! Return the root node
         node_type root() const
         {
-            return node_type(0, m_size, 0, 0, 0);
-        }
-
-        template<uint8_t t_b>
-        size_type rank(size_type i, const node_type& v) const
-        {
-            if (t_b)
-                return m_tree_rank(v.offset+i)-m_tree_rank(v.offset);
-            else
-                return v.size-rank<1>(i,v);
+            return node_type(0, m_size, 0, 0);
         }
 
         //! Returns the two child nodes of an inner node
@@ -753,7 +831,7 @@ class wt_int
          *  \return Return a pair of nodes (left child, right child).
          *  \pre !is_leaf(v)
          */
-        std::array<node_type, 2>
+        std::pair<node_type, node_type>
         expand(const node_type& v) const
         {
             node_type v_right = v;
@@ -765,7 +843,7 @@ class wt_int
          *  \return Return a pair of nodes (left child, right child).
          *  \pre !is_leaf(v)
          */
-        std::array<node_type, 2>
+        std::pair<node_type, node_type>
         expand(node_type&& v) const
         {
             node_type v_left;
@@ -845,7 +923,7 @@ class wt_int
          *          range mapped to the right child of v.
          *  \pre !is_leaf(v) and s>=v_s and e<=v_e
          */
-        std::array<range_type, 2>
+        std::pair<range_type, range_type>
         expand(const node_type& v, const range_type& r) const
         {
             auto v_sp_rank = m_tree_rank(v.offset);  // this is already calculated in expand(v)

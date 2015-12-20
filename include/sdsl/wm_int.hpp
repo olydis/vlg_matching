@@ -464,8 +464,8 @@ class wm_int
             size_type cnt_answers = 0;
             point_vec_type point_vec;
             if (lb <= rb) {
-                size_type is[m_max_level+1];
-                size_type rank_off[m_max_level+1];
+                std::vector<size_type> is(m_max_level+1);
+                std::vector<size_type> rank_off(m_max_level+1);
                 _range_search_2d(root(), range_type(lb, rb), vlb, vrb, 0, is,
                                  rank_off, point_vec, report, cnt_answers);
             }
@@ -474,8 +474,8 @@ class wm_int
 
         void
         _range_search_2d(node_type v, range_type r, value_type vlb,
-                         value_type vrb, size_type ilb, size_type is[],
-                         size_type rank_off[], point_vec_type& point_vec,
+                         value_type vrb, size_type ilb, std::vector<size_type>& is,
+                         std::vector<size_type>& rank_off, point_vec_type& point_vec,
                          bool report, size_type& cnt_answers)
         const
         {
@@ -639,7 +639,7 @@ class wm_int
          *  \return Return a pair of nodes (left child, right child).
          *  \pre !is_leaf(v)
          */
-        std::array<node_type, 2>
+        std::pair<node_type, node_type>
         expand(const node_type& v) const
         {
             node_type v_right = v;
@@ -651,7 +651,7 @@ class wm_int
          *  \return Return a pair of nodes (left child, right child).
          *  \pre !is_leaf(v)
          */
-        std::array<node_type, 2>
+        std::pair<node_type, node_type>
         expand(node_type&& v) const
         {
             node_type v_left;
@@ -732,7 +732,7 @@ class wm_int
          *          range mapped to the right child of v.
          *  \pre !is_leaf(v) and s>=v_s and e<=v_e
          */
-        std::array<range_type, 2>
+        std::pair<range_type, range_type>
         expand(const node_type& v, const range_type& r) const
         {
             auto v_sp_rank = m_tree_rank(v.offset);  // this is already calculated in expand(v)
