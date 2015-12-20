@@ -52,8 +52,21 @@ class index_regexp_boost
 
         void prepare(const gapped_pattern& pat) 
         { 
+            // MULTIPLE LAZY PATTERNS HACK
+            std::string long_regexp = std::string(pat.subpatterns[0].begin(), pat.subpatterns[0].end()) + pat.gap_strs[0] + std::string(pat.subpatterns[1].begin(), pat.subpatterns[1].end());
+            std::string last_part = long_regexp.substr(long_regexp.find_last_of("."));
+            for (int len = pat.subpatterns.size(); len < NUM_PATTERNS; ++len)
+                long_regexp += last_part;
+
+            std::vector<char> raw_lazy;
+            for (char c : long_regexp)
+            {
+                raw_lazy.push_back(c);
+                if (c == '}') raw_lazy.push_back('?');
+            }
+            
             /* (1) construct regexp */
-            rx = boost::regex(pat.raw_regexp.begin(),pat.raw_regexp.end(),REGEXP_TYPE);
+            rx = boost::regex(raw_lazy.begin(),raw_lazy.end(),REGEXP_TYPE);
         }
 
         //! Search for the k documents which contain the search term most frequent

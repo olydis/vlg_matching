@@ -16,9 +16,7 @@ inline st_ptr<T> make_sh(Args&&... __args)
 
 template<class t_wt=sdsl::wt_int<
     sdsl::bit_vector_il<>, 
-    sdsl::rank_support_il<>/*, 
-    sdsl::select_support_scan<1>, 
-    sdsl::select_support_scan<0>*/>,
+    sdsl::rank_support_il<>>,
     class t_bv=sdsl::rrr_vector<>>
 class matching_index
 {
@@ -170,7 +168,7 @@ struct node_cache {
 
     size_type range_size()
     {
-        return range_end - range_begin;
+        return range_end - range_begin + 1;
     }
 
     node_cache(
@@ -318,12 +316,15 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
                     lex_ranges[j].expand();
                 else {
                     current = lex_ranges[0].current_node()->range_begin;
+                    //std::cerr << "HIT" << std::endl;
+                    //for (size_t i = 0; i < lex_ranges.size(); ++i)
+                    //    std::cerr << "\t" << lex_ranges[i].current_node()->range_begin << std::endl;
 
                     auto x = lex_ranges[lex_ranges.size() - 1].current_node()->range_begin;
 
                     // pull a forward
                     while (valid() && lex_ranges[0].current_node()->range_end <= x) lex_ranges[0].skip_subtree();
-                    while (lex_ranges[0].next_leaf() != nullptr && lex_ranges[0].current_node()->range_begin <= x + size3) ;
+                    while (lex_ranges[0].next_leaf() != nullptr && lex_ranges[0].current_node()->range_begin < x + size3) ;
 
                     return true;
                 }

@@ -33,6 +33,7 @@ class index_sasearch
 
         size_type serialize(std::ostream& out, sdsl::structure_tree_node* v=NULL, std::string name="")const
         {
+            (void)name;
             auto size = m_sa.serialize(out, v, "sa");
             size += m_text.serialize(out, v, "text");
             return size;
@@ -110,6 +111,9 @@ class index_sasearch
                 // situation: VALID match, but LAZY
 
                 res.positions.push_back(*its[0]);
+                //std::cerr << "HIT" << std::endl;
+                //for (size_t i = 0; i < its.size(); ++i)
+                //    std::cerr << "\t" << *its[i] << std::endl;
 
                 // pull a beyond previous c (non-overlapping)
                 auto posx = *its[its.size() - 1] + s[0].size();
