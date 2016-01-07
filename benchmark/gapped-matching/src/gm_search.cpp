@@ -1,3 +1,13 @@
+#ifdef LIKWID_PERFMON
+#include <likwid.h>
+#else
+#define LIKWID_MARKER_INIT
+#define LIKWID_MARKER_START(x)
+#define LIKWID_MARKER_STOP(x)
+#define LIKWID_MARKER_CLOSE
+#endif
+
+#include "mem_monitor.hpp"
 #include "utils.hpp"
 #include "index_types.hpp"
 #include "collection.hpp"
@@ -52,6 +62,11 @@ cmdargs_t parse_args(int argc, const char* argv[])
 template <class t_idx>
 void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
 {
+    mem_monitor mm("mem-mon-out.csv",std::chrono::milliseconds(10));
+    LIKWID_MARKER_INIT;
+
+    mm.event("load");
+    LIKWID_MARKER_START("load");
     /* load index */
     t_idx idx;
     LOG(INFO) << "BENCH_INDEX (" << idx.name() << ")";
@@ -62,7 +77,10 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
     } else {
         LOG(FATAL) << "cannot read index from file : " << input_file;
     }
+    LIKWID_MARKER_STOP("load");
 
+    mm.event("search");
+    LIKWID_MARKER_START("search");
     /* benchmark */
     size_t num_results = 0;
     size_t checksum = 0;
@@ -101,6 +119,9 @@ void bench_index(collection& col,const std::vector<gapped_pattern>& patterns)
                   << " TIME_MS_PREP=" << time_mus_prep.count()
                   << " TIME_MS=" << time_mus.count() << "  P='"<<pat.raw_regexp<<"'";
     }
+    LIKWID_MARKER_STOP("search");
+
+    LIKWID_MARKER_CLOSE;
 
     /* output stats */
     auto ts = t.summary();

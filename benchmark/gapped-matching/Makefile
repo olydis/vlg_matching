@@ -1,5 +1,9 @@
 include ../Make.helper
 include ../Make.download
+
+MEASURE_ENERGY = 1 
+MEASURE_CMD = $(if $(MEASURE_ENERGY), likwid-perfctr -C S0:0 -g ENERGY -m,)
+
 CXX_FLAGS = $(MY_CXX_FLAGS) # in compile_options.config
 LIBS = -lsdsl 
 SRC_DIR = src
@@ -8,7 +12,7 @@ TMP_DIR = ../tmp
 .SECONDARY:
 
 TC_IDS:=$(call config_ids,test_case.config)
-TC_COLLECTIONS:=$(foreach TC_ID,$(TC_IDS),collections/$(TC_ID)/text.TEXT)
+TC_COLLECTIONS:=#$(foreach TC_ID,$(TC_IDS),collections/$(TC_ID)/text.TEXT)
 UNIQUE_DATA_FILES:=$(shell echo $(call config_column,test_case.config,2) | tr " " "\n" | uniq | tr "\n" " ")
 TEMP_DATA_FILE:=build/_tmp.raw
 
@@ -56,7 +60,9 @@ results/%: $(GM_EXECS) $(TC_COLLECTIONS) $(GM_PATTERNS)
 	@echo "# ALGO = $(ALGO)" >> $@
 	$(eval SENTINEL:="collections/$(TC_ID).$(ALGO).sentinel")
 	@test -e $(SENTINEL) || { echo "Running build/gm_index-$(ALGO).x -c collections/$(TC_ID)"; ./build/gm_index-$(ALGO).x -c collections/$(TC_ID); touch $(SENTINEL); }
-	build/gm_search-$(ALGO).x -c collections/$(TC_ID) -p collections/$(TC_ID)/patterns/regex.$(TC_ID).$(PATTERN_ID).regex.txt -t $(IS_TEXT) >> $@
+	$(MEASURE_CMD) build/gm_search-$(ALGO).x -c collections/$(TC_ID) -p collections/$(TC_ID)/patterns/regex.$(TC_ID).$(PATTERN_ID).regex.txt -t $(IS_TEXT) >> $@
+	mv mem-mon-out.csv $@.mem.csv
+	Rscript memvis.R $@.mem.csv
 
 ../../examples/generate-pattern.x:
 	@cd ../../examples; make generate-pattern.x
@@ -81,7 +87,7 @@ collections/%.regex.txt: $(GM_WORDS)
 
 build/%:
 	@mkdir -p build
-	cd build && cmake .. && make -j 2
+	cd build && cmake -DMEASURE_ENERGY=$(MEASURE_ENERGY) .. && make -j 2
 
 clean-build:
 	@echo "Remove executables"
