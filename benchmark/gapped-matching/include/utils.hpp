@@ -20,8 +20,6 @@ struct gapped_pattern {
     std::string raw_regexp;
     sdsl::int_vector<0> sdsl_regexp;
     std::vector<string_type> subpatterns;
-    std::vector<std::string> gap_strs;
-    std::vector<std::pair<uint64_t,uint64_t>> gaps;
     gapped_pattern(const std::string& p, bool string_patterns) : raw_regexp(p)
     {
         auto parse_subpattern = [&](std::string s) {
@@ -41,32 +39,15 @@ struct gapped_pattern {
         for (size_t i=0; i<raw_regexp.size(); i++) {
             sdsl_regexp[i] = raw_regexp[i];
         }
-        int64_t last_gap_end = -1;
+        int64_t last_gap_end = 0;
         size_t gap_pos;
-        while ((gap_pos = raw_regexp.find(".{", last_gap_end + 1)) != std::string::npos) {
-            auto gap_end =  raw_regexp.find("}", gap_pos);
-            std::string gap_str = raw_regexp.substr(gap_pos, gap_end - gap_pos + 1);
-            gap_strs.push_back(gap_str);
-            /* try parsing the gap  description */
-            auto first_num_sep = gap_str.find(",");
-            auto first_num_str = gap_str.substr(2,first_num_sep-2);
-            auto second_num_str = gap_str.substr(first_num_sep+1);
-            second_num_str.pop_back();
-            uint64_t first_gap_num = std::stoull(first_num_str);
-            uint64_t second_gap_num = std::stoull(second_num_str);
-            if (first_gap_num > second_gap_num) {
-                throw std::runtime_error("invalid gap description");
-            }
-            gaps.emplace_back(first_gap_num,second_gap_num);
-            auto subptrlen = gap_pos - (last_gap_end+1);
-            auto subpattern = raw_regexp.substr(last_gap_end+1,subptrlen);
+        while ((gap_pos = raw_regexp.find(".*", last_gap_end)) != std::string::npos) {
+            auto subpattern = raw_regexp.substr(last_gap_end,gap_pos - last_gap_end);
             subpatterns.push_back(parse_subpattern(subpattern));
-            last_gap_end = gap_end;
+            last_gap_end = gap_pos + 2;
         }
-        auto last_subpattern = raw_regexp.substr(last_gap_end+1);
+        auto last_subpattern = raw_regexp.substr(last_gap_end);
         subpatterns.push_back(parse_subpattern(last_subpattern));
-        
-        LOG(INFO) << "PARSED('" << raw_regexp << "') -> GAPS = " << gaps << " SUBPATTERNS = " << subpatterns;
     };
 };
 

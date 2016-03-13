@@ -65,8 +65,8 @@ class index_sasearch
 
             std::cerr << "REGEX ::: " << pat.raw_regexp << std::endl;
 
-            min_gap = s[0].size() + pat.gaps[0].first;
-            max_gap = s[0].size() + pat.gaps[0].second;
+            min_gap = s[0].size() + 0;
+            max_gap = s[0].size() + 0;
 
             // get ranges
             std::vector<std::vector<size_type>> ranges;

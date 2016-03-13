@@ -56,7 +56,7 @@ class index_regexp_boost
             for (char c : pat.raw_regexp)
             {
                 raw_lazy.push_back(c);
-                if (c == '}') raw_lazy.push_back('?');
+                if (c == '*') raw_lazy.push_back('?');
             }
             
             /* (1) construct regexp */

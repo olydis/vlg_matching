@@ -142,13 +142,13 @@ class index_qgram_regexp
 
         void prepare(const gapped_pattern& pat)
         {
-            // inject lazines
             std::vector<char> raw_lazy;
-            for (char c : pat.raw_regexp) {
+            for (char c : pat.raw_regexp)
+            {
                 raw_lazy.push_back(c);
-                if (c == '}') raw_lazy.push_back('?');
+                if (c == '*') raw_lazy.push_back('?');
             }
-
+            
             /* (1) construct regexp */
             rx = BOOSTD::regex(raw_lazy.begin(),raw_lazy.end(),REGEXP_TYPE);
         }
@@ -206,7 +206,7 @@ class index_qgram_regexp
                         }
                     }
                     smallest_qgram_pat_start_offset += subp.size();
-                    if (j != pat.gaps.size()) smallest_qgram_pat_start_offset += pat.gaps[j].second;
+                    if (j != pat.subpatterns.size() - 1) smallest_qgram_pat_start_offset += 0; // ???
                 }
                 if (found_small_list) {
                     auto itr = smallest_list.begin();
@@ -269,7 +269,7 @@ class index_qgram_regexp
                         }
                     }
                     pat_start_offset += subp.size();
-                    if (j != pat.gaps.size()) pat_start_offset += pat.gaps[j].second; // use min here?
+                    if (j != pat.subpatterns.size() - 1) pat_start_offset += 0; // ???
                     // LOG(INFO) << "pat_start_offset = " << pat_start_offset;
                 }
             }

@@ -91,7 +91,7 @@ collections/%.words.txt: $(TC_COLLECTIONS) ../../examples/generate-pattern.x
 	$(eval SP_LENGTH:=$(call dim,3,$*))
 	$(eval IS_TEXT:=$(call config_select,test_case.config,$(TC_ID),7))
 	@echo "Extracting words of length $(SP_LENGTH) from $(TC_ID)..."
-	@../../examples/generate-pattern.x collections/$(TC_ID)/text.TEXT 200 $(SP_LENGTH) $(IS_TEXT) > $@
+	@../../examples/generate-pattern.x collections/$(TC_ID)/text.TEXT 640 $(SP_LENGTH) $(IS_TEXT) > $@
 
 # Format: collections/[TC_ID]/patterns/regex.[TC_ID].[PATTERN_ID].[NUM_SP].regex.txt
 collections/%.regex.txt: $(GM_WORDS)
@@ -102,7 +102,7 @@ collections/%.regex.txt: $(GM_WORDS)
 	$(eval GAP:=$(call config_select,patterns.config,$(PATTERN_ID),3))
 	@echo "$(PATTERN_ID)"
 	@echo "Creating regex patterns with $(NUM_SP) words of length $(SP_LENGTH) from $(TC_ID) and a gap of $(GAP)..."
-	@cat collections/$(TC_ID)/patterns/words.$(TC_ID).$(SP_LENGTH).words.txt | sed -e 's/ /___/g' | xargs -n$(NUM_SP) | sed -e 's/ /.{$(GAP)}/g' | head -n $(NUM_SAMPLES) | sed -e 's/___/ /g' > $@
+	@cat collections/$(TC_ID)/patterns/words.$(TC_ID).$(SP_LENGTH).words.txt | sed -e 's/ /___/g' | xargs -n$(NUM_SP) | sed -e 's/ /.*/g' | head -n $(NUM_SAMPLES) | sed -e 's/___/ /g' > $@
 
 build/%:
 	@mkdir -p build

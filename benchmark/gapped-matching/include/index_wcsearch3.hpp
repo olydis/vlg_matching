@@ -409,8 +409,8 @@ class index_wcsearch3
 
             std::cerr << "REGEX ::: " << pat.raw_regexp << std::endl;
 
-            min_gap = pat.subpatterns[0].size() + pat.gaps[0].first;
-            max_gap = pat.subpatterns[0].size() + pat.gaps[0].second;
+            min_gap = pat.subpatterns[0].size() + 0;
+            max_gap = pat.subpatterns[0].size() + 0;
 
             // smart scan
             auto it = wild_card_match_iterator3<index_type>(index, pat.subpatterns, min_gap, max_gap);
