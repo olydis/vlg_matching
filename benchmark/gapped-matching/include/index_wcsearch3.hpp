@@ -220,7 +220,7 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
 
         result_type current;
 
-        bool relax() {
+        /*bool __attribute__ ((noinline)) relax() {
             bool redo = true;
             while (redo)
             {
@@ -243,11 +243,75 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
             return true;
         }
 
-        bool next()
+        bool __attribute__ ((noinline)) next()
         {
             //if (valid())
             // find next independent match
             while (relax()) {
+                size_t r = 1;
+                size_t j;
+                bool skip = false;
+                for (size_t i = 0; i < lex_ranges.size(); ++i) {
+                    auto lr = lex_ranges[i].current_node().range_size();
+                    if (lr > r) {
+                        r = lr;
+                        j = i;
+                        skip = true;
+                    }
+                }
+
+                if (skip)
+                    lex_ranges[j].expand();
+                else {
+                    current = lex_ranges[0].current_node().range_begin;
+                    //std::cerr << "HIT" << std::endl;
+                    //for (size_t i = 0; i < lex_ranges.size(); ++i)
+                    //    std::cerr << "\t" << lex_ranges[i].current_node()->range_begin << std::endl;
+
+                    auto x = lex_ranges[lex_ranges.size() - 1].current_node().range_begin;
+
+                    // pull a forward
+                    while (lex_ranges[0].has_more() && lex_ranges[0].current_node().range_end <= x) lex_ranges[0].skip_subtree();
+                    while (lex_ranges[0].move_next_leaf() && lex_ranges[0].current_node().range_begin < x + size3) ;
+
+                    return true;
+                }
+            }
+
+            current = (result_type)-1;
+            return false;
+        }*/
+
+        bool __attribute__ ((noinline)) next()
+        {
+            //if (valid())
+            // find next independent match
+                        
+            while (true) {
+                bool redo = true;
+                bool brea = false;
+                while (redo && !brea)
+                {
+                    redo = false;
+                    for (size_t i = 1; i < lex_ranges.size(); ++i) {
+                        if (lex_ranges[i - 1].current_node().range_end + max_gap < lex_ranges[i].current_node().range_begin) {
+                            lex_ranges[i - 1].skip_subtree();
+                            redo = true;
+                            if (!lex_ranges[i - 1].has_more())
+                                { brea = true; break; }
+                        }
+                        if (lex_ranges[i - 1].current_node().range_begin + min_gap > lex_ranges[i].current_node().range_end) {
+                            lex_ranges[i].skip_subtree();
+                            redo = true;
+                            if (!lex_ranges[i].has_more())
+                                { brea = true; break; }
+                        }
+                    }
+                }
+                if (brea)
+                    break;
+                
+                
                 size_t r = 1;
                 size_t j;
                 bool skip = false;
@@ -302,8 +366,8 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
                 lex_ranges.emplace_back(index, sdsl::range_type(sp, ep), root_node);
                 //std::cerr << std::string(sx.begin(), sx.end()) << ": " << sp << " " << ep << std::endl;
             }
-if (valid())
-            next();
+            if (valid())
+                next();
         }
 
         bool valid() const
