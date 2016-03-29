@@ -5,8 +5,14 @@
 #include "utils.hpp"
 #include "sdsl/suffix_arrays.hpp"
 
-template<class type_index>
-struct node_cache;
+template<typename T>
+using st_ptr = std::__shared_ptr<T, __gnu_cxx::_S_single>;
+
+template<typename T, typename... Args>
+inline st_ptr<T> make_sh(Args&& ... __args)
+{
+    return std::__make_shared<T, __gnu_cxx::_S_single>(std::forward<Args>(__args)...);
+}
 
 template<class t_wt=sdsl::wt_int<
              sdsl::bit_vector_il<>,
@@ -29,7 +35,7 @@ class matching_index
     private:
         text_type m_text;
         wt_type   m_wt;
-        
+
     public:
         const text_type& text = m_text;
         const wt_type&   wt  = m_wt;
@@ -125,9 +131,12 @@ struct node_cache {
 
     const type_index& index;
     node_type node;
+    std::pair<st_ptr<node_cache>, st_ptr<node_cache>> children { nullptr, nullptr };
     size_type range_begin;
     size_type range_end;
     bool is_leaf;
+    
+    int __times;
 
     size_type range_size()
     {
@@ -144,6 +153,24 @@ struct node_cache {
         this->range_begin = std::get<0>(range);
         this->range_end = std::get<1>(range);
         this->is_leaf = index.wt.is_leaf(node);
+        this->__times = 0;
+    }
+
+    void ensure_children()
+    {
+        if (children.first == nullptr) {
+            auto children = index.wt.expand(node);
+            this->children = make_pair(
+                                 make_sh<node_cache>(children[0], index),
+                                 make_sh<node_cache>(children[1], index));
+        }
+        else
+            this->__times++;
+    }
+    
+    ~node_cache()
+    {
+        std::cerr << "CHITS: " << this->__times << std::endl;
     }
 };
 
@@ -151,7 +178,7 @@ template<class type_index>
 class wavelet_tree_range_walker
 {
     private:
-        typedef node_cache<type_index> node_type;
+        typedef st_ptr<node_cache<type_index>> node_type;
         const type_index& index;
         std::vector<std::pair<sdsl::range_type,node_type>> dfs_stack;
 
@@ -183,21 +210,21 @@ class wavelet_tree_range_walker
         {
             auto top = dfs_stack.back(); dfs_stack.pop_back();
             auto& node = top.second;
-            auto children = index.wt.expand(node.node);
-            auto exp_range = index.wt.expand(node.node, top.first);
+            node->ensure_children();
+            auto exp_range = index.wt.expand(node->node, top.first);
             if (!sdsl::empty(exp_range[1]))
-                dfs_stack.emplace_back(exp_range[1], node_type(children[1], index));
+                dfs_stack.emplace_back(exp_range[1], node->children.second);
             if (!sdsl::empty(exp_range[0]))
-                dfs_stack.emplace_back(exp_range[0], node_type(children[0], index));
+                dfs_stack.emplace_back(exp_range[0], node->children.first);
         }
 
-        inline bool move_next_leaf()
+        inline node_type next_leaf()
         {
-            if (has_more() && current_node().is_leaf)
+            if (has_more() && current_node()->is_leaf)
                 skip_subtree();
-            while (has_more() && !current_node().is_leaf)
+            while (has_more() && !current_node()->is_leaf)
                 expand();
-            return has_more();
+            return has_more() ? current_node() : nullptr;
         }
 };
 
@@ -226,13 +253,13 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
             {
                 redo = false;
                 for (size_t i = 1; i < lex_ranges.size(); ++i) {
-                    if (lex_ranges[i - 1].current_node().range_end + max_gap < lex_ranges[i].current_node().range_begin) {
+                    if (lex_ranges[i - 1].current_node()->range_end + max_gap < lex_ranges[i].current_node()->range_begin) {
                         lex_ranges[i - 1].skip_subtree();
                         redo = true;
                         if (!lex_ranges[i - 1].has_more())
                             return false;
                     }
-                    if (lex_ranges[i - 1].current_node().range_begin + min_gap > lex_ranges[i].current_node().range_end) {
+                    if (lex_ranges[i - 1].current_node()->range_begin + min_gap > lex_ranges[i].current_node()->range_end) {
                         lex_ranges[i].skip_subtree();
                         redo = true;
                         if (!lex_ranges[i].has_more())
@@ -248,11 +275,12 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
             //if (valid())
             // find next independent match
             while (relax()) {
+
                 size_t r = 1;
                 size_t j;
                 bool skip = false;
                 for (size_t i = 0; i < lex_ranges.size(); ++i) {
-                    auto lr = lex_ranges[i].current_node().range_size();
+                    auto lr = lex_ranges[i].current_node()->range_size();
                     if (lr > r) {
                         r = lr;
                         j = i;
@@ -263,16 +291,16 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
                 if (skip)
                     lex_ranges[j].expand();
                 else {
-                    current = lex_ranges[0].current_node().range_begin;
+                    current = lex_ranges[0].current_node()->range_begin;
                     //std::cerr << "HIT" << std::endl;
                     //for (size_t i = 0; i < lex_ranges.size(); ++i)
                     //    std::cerr << "\t" << lex_ranges[i].current_node()->range_begin << std::endl;
 
-                    auto x = lex_ranges[lex_ranges.size() - 1].current_node().range_begin;
+                    auto x = lex_ranges[lex_ranges.size() - 1].current_node()->range_begin;
 
                     // pull a forward
-                    while (lex_ranges[0].has_more() && lex_ranges[0].current_node().range_end <= x) lex_ranges[0].skip_subtree();
-                    while (lex_ranges[0].move_next_leaf() && lex_ranges[0].current_node().range_begin < x + size3) ;
+                    while (valid() && lex_ranges[0].current_node()->range_end <= x) lex_ranges[0].skip_subtree();
+                    while (lex_ranges[0].next_leaf() != nullptr && lex_ranges[0].current_node()->range_begin < x + size3) ;
 
                     return true;
                 }
@@ -293,8 +321,7 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
                                   size_t max_gap)
             : min_gap(min_gap), max_gap(max_gap), size3(s[s.size() - 1].size())
         {
-            
-            auto root_node = node_cache<type_index>(index.wt.root(), index);
+            auto root_node = make_sh<node_cache<type_index>>(index.wt.root(), index);
             size_type sp = 1, ep = 0;
 
             for (auto sx : s) {
@@ -302,7 +329,7 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
                 lex_ranges.emplace_back(index, sdsl::range_type(sp, ep), root_node);
                 //std::cerr << std::string(sx.begin(), sx.end()) << ": " << sp << " " << ep << std::endl;
             }
-if (valid())
+
             next();
         }
 
