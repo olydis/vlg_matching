@@ -299,7 +299,7 @@ class wild_card_match_iterator3 : public std::iterator<std::forward_iterator_tag
 
             for (auto sx : s) {
                 forward_search(index.text.begin(), index.text.end(), index.wt, 0, index.wt.size()-1, sx.begin(), sx.end(), sp, ep);
-                lex_ranges.emplace_back(index, sdsl::range_type(sp, ep), root_node);
+                lex_ranges.emplace_back(index, sdsl::range_type{sp, ep}, root_node);
                 //std::cerr << std::string(sx.begin(), sx.end()) << ": " << sp << " " << ep << std::endl;
             }
 if (valid())
